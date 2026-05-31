@@ -178,3 +178,113 @@
     padding: 14px 16px;
   }
 }
+
+/* App Header & Navigation Styles */
+.upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(560px, 100%);
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(145, 92, 255, 0.12);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(99, 87, 135, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-header {
+    background: rgba(26, 27, 35, 0.8);
+    border-color: rgba(192, 132, 252, 0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7f56da, #aa3bff);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 4px 10px rgba(145, 92, 255, 0.3);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.user-email {
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.05);
+  color: #ef4444;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .logout-button {
+    border-color: rgba(248, 113, 113, 0.25);
+    background: rgba(248, 113, 113, 0.08);
+    color: #f87171;
+  }
+}
+
+.logout-button:hover {
+  background: #ef4444;
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  .logout-button:hover {
+    background: #f87171;
+    color: #16171d;
+    box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
+  }
+}
+
+.logout-icon {
+  width: 16px;
+  height: 16px;
+}
+
