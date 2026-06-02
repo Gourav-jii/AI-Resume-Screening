@@ -5,7 +5,6 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 function Auth({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -17,17 +16,6 @@ function Auth({ onLoginSuccess }) {
 
   const handleToggleMode = () => {
     setIsLogin(!isLogin);
-    setIsForgotPassword(false);
-    setError("");
-    setSuccess("");
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
-    setName("");
-  };
-
-  const handleToggleForgotPassword = () => {
-    setIsForgotPassword(!isForgotPassword);
     setError("");
     setSuccess("");
     setEmail("");
@@ -42,20 +30,7 @@ function Auth({ onLoginSuccess }) {
     setSuccess("");
 
     // Form Validation
-    if (isForgotPassword) {
-      if (!email || !password || !confirmPassword) {
-        setError("Please fill in all fields.");
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError("Passwords do not match.");
-        return;
-      }
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters long.");
-        return;
-      }
-    } else if (isLogin) {
+    if (isLogin) {
       if (!email || !password) {
         setError("Please fill in all fields.");
         return;
@@ -84,30 +59,7 @@ function Auth({ onLoginSuccess }) {
     setIsLoading(true);
 
     try {
-      if (isForgotPassword) {
-        // Forgot Password API Call
-        const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to reset password.");
-        }
-
-        setSuccess(data.message || "Password reset successfully!");
-        setIsLoading(false);
-        setTimeout(() => {
-          setIsForgotPassword(false);
-          setIsLogin(true);
-          setPassword("");
-          setConfirmPassword("");
-          setSuccess("");
-        }, 2000);
-
-      } else if (isLogin) {
+      if (isLogin) {
         // Login API Call
         const response = await fetch(`${API_URL}/api/auth/login`, {
           method: "POST",
@@ -160,16 +112,10 @@ function Auth({ onLoginSuccess }) {
       <div className="auth-header">
         <span className="auth-badge">Secure Access</span>
         <h1>
-          {isForgotPassword
-            ? "Reset Password"
-            : isLogin
-            ? "Welcome Back"
-            : "Create Account"}
+          {isLogin ? "Welcome Back" : "Create Account"}
         </h1>
         <p className="auth-description">
-          {isForgotPassword
-            ? "Enter your email and a new password to update your credentials."
-            : isLogin
+          {isLogin
             ? "Sign in to your account to upload and analyze resumes."
             : "Sign up to start scanning resumes with AI-powered analytics."}
         </p>
@@ -179,7 +125,7 @@ function Auth({ onLoginSuccess }) {
         {error && <div className="auth-alert auth-error">{error}</div>}
         {success && <div className="auth-alert auth-success">{success}</div>}
 
-        {!isLogin && !isForgotPassword && (
+        {!isLogin && (
           <div className="form-group">
             <label htmlFor="name-input">Full Name</label>
             <div className="input-wrapper">
@@ -238,9 +184,7 @@ function Auth({ onLoginSuccess }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="password-input">
-            {isForgotPassword ? "New Password" : "Password"}
-          </label>
+          <label htmlFor="password-input">Password</label>
           <div className="input-wrapper">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -302,25 +246,11 @@ function Auth({ onLoginSuccess }) {
               )}
             </button>
           </div>
-          {isLogin && (
-            <div className="forgot-password-link-container">
-              <button
-                type="button"
-                className="forgot-link-btn"
-                onClick={handleToggleForgotPassword}
-                disabled={isLoading}
-              >
-                Forgot Password?
-              </button>
-            </div>
-          )}
         </div>
 
-        {(!isLogin || isForgotPassword) && (
+        {!isLogin && (
           <div className="form-group">
-            <label htmlFor="confirm-password-input">
-              {isForgotPassword ? "Confirm New Password" : "Confirm Password"}
-            </label>
+            <label htmlFor="confirm-password-input">Confirm Password</label>
             <div className="input-wrapper">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -351,8 +281,6 @@ function Auth({ onLoginSuccess }) {
         <button type="submit" className="auth-button" disabled={isLoading}>
           {isLoading ? (
             <div className="spinner"></div>
-          ) : isForgotPassword ? (
-            "Reset Password"
           ) : isLogin ? (
             "Sign In"
           ) : (
@@ -361,31 +289,17 @@ function Auth({ onLoginSuccess }) {
         </button>
 
         <div className="auth-footer">
-          {isForgotPassword ? (
-            <p>
-              Remembered your password?{" "}
-              <button
-                type="button"
-                className="toggle-link-btn"
-                onClick={handleToggleForgotPassword}
-                disabled={isLoading}
-              >
-                Log In
-              </button>
-            </p>
-          ) : (
-            <p>
-              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button
-                type="button"
-                className="toggle-link-btn"
-                onClick={handleToggleMode}
-                disabled={isLoading}
-              >
-                {isLogin ? "Sign Up" : "Log In"}
-              </button>
-            </p>
-          )}
+          <p>
+            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+            <button
+              type="button"
+              className="toggle-link-btn"
+              onClick={handleToggleMode}
+              disabled={isLoading}
+            >
+              {isLogin ? "Sign Up" : "Log In"}
+            </button>
+          </p>
         </div>
       </form>
     </div>

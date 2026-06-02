@@ -30,6 +30,19 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
+// Job Description Schema & Model
+const jobDescriptionSchema = new mongoose.Schema({
+  jobTitle: { type: String, required: true },
+  department: { type: String },
+  location: { type: String },
+  skills: { type: String },
+  description: { type: String, required: true },
+  createdBy: { type: String },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const JobDescription = mongoose.model("JobDescription", jobDescriptionSchema);
+
 // REST API Endpoints
 
 // POST /api/auth/signup
@@ -122,6 +135,43 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     res.json({ message: "Password reset successfully!" });
   } catch (error) {
     console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error. Please try again." });
+  }
+});
+
+// GET /api/job-description
+app.get("/api/job-description", async (req, res) => {
+  try {
+    const jobs = await JobDescription.find().sort({ createdAt: -1 });
+    res.json(jobs);
+  } catch (error) {
+    console.error("Job description fetch error:", error);
+    res.status(500).json({ message: "Server error. Please try again." });
+  }
+});
+
+// POST /api/job-description
+app.post("/api/job-description", async (req, res) => {
+  try {
+    const { jobTitle, department, location, skills, description, createdBy } = req.body;
+
+    if (!jobTitle || !description) {
+      return res.status(400).json({ message: "Job title and description are required." });
+    }
+
+    const jobEntry = new JobDescription({
+      jobTitle,
+      department,
+      location,
+      skills,
+      description,
+      createdBy,
+    });
+
+    await jobEntry.save();
+    res.status(201).json(jobEntry);
+  } catch (error) {
+    console.error("Job description save error:", error);
     res.status(500).json({ message: "Server error. Please try again." });
   }
 });
