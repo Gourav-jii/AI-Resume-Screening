@@ -1,0 +1,1238 @@
+/* ============================================================
+   Candidates Section – Complete Styling
+   ============================================================ */
+
+/* ── CSS Variables ── */
+:root {
+  --primary: #4f46e5;
+  --primary-light: #6366f1;
+  --primary-bg: #e0e7ff;
+  --text-dark: #1e293b;
+  --text-mid: #475569;
+  --text-light: #94a3b8;
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-muted: #f1f5f9;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --green: #10b981;
+  --green-bg: #d1fae5;
+  --red: #ef4444;
+  --red-bg: #fee2e2;
+  --yellow: #f59e0b;
+  --yellow-bg: #fef3c7;
+  --blue: #3b82f6;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --transition: all 0.2s ease;
+}
+
+/* ============================================================
+   1. CANDIDATES LIST VIEW
+   ============================================================ */
+
+/* Container */
+.candidates-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0;
+}
+
+/* Header Row */
+.candidates-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.candidates-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.candidates-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-light);
+  margin-top: 0.25rem;
+}
+
+/* Search & Actions */
+.candidates-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  width: 240px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  background: var(--bg-card);
+  color: var(--text-dark);
+  outline: none;
+  transition: var(--transition);
+}
+
+.search-box input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.search-box .search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.btn-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-filter:hover {
+  background: var(--bg-muted);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Filter Row */
+.candidates-filters-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  padding: 0.45rem 2rem 0.45rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  font-size: 0.85rem;
+  color: var(--text-mid);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 0.6rem;
+}
+
+.filter-select:focus {
+  border-color: var(--primary);
+}
+
+/* Table Wrapper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Table */
+.candidates-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.candidates-table th {
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.candidates-table td {
+  padding: 0.85rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-mid);
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: middle;
+}
+
+.candidates-table tbody tr {
+  transition: var(--transition);
+}
+
+.candidates-table tbody tr:hover {
+  background: var(--bg-muted);
+}
+
+.candidates-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Candidate Info Cell */
+.candidate-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.candidate-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.candidate-name {
+  font-weight: 600;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+}
+
+.candidate-email {
+  color: var(--text-light);
+  font-size: 0.78rem;
+}
+
+/* Skills */
+.skills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.skill-pill {
+  background: var(--bg-muted);
+  color: var(--text-mid);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+}
+
+.skill-pill-more {
+  background: transparent;
+  color: var(--text-light);
+  padding: 0.2rem 0.4rem;
+  font-size: 0.72rem;
+}
+
+/* Actions */
+.actions-container {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.action-btn {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.action-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.action-btn-delete {
+  background: var(--red);
+}
+
+.action-btn-delete:hover {
+  background: #dc2626;
+}
+
+/* Loading / Error / Empty */
+.loading-state,
+.error-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  text-align: center;
+  color: var(--text-light);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.retry-btn {
+  margin-top: 0.75rem;
+  padding: 0.45rem 1.25rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.empty-text {
+  color: var(--text-light);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+
+/* ============================================================
+   2. CANDIDATE DETAIL VIEW
+   ============================================================ */
+
+.candidate-details-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Back Button */
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--text-mid);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: var(--transition);
+  align-self: flex-start;
+}
+
+.back-btn:hover {
+  color: var(--primary);
+}
+
+/* ── Profile Header Card ── */
+.profile-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem 2rem;
+  box-shadow: var(--shadow-sm);
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.profile-avatar-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.profile-info-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.profile-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.profile-meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.profile-meta-item {
+  font-size: 0.82rem;
+  color: var(--text-mid);
+}
+
+.profile-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Score Badges */
+.score-badge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.6rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  min-width: 80px;
+}
+
+.badge-label {
+  font-size: 0.7rem;
+  color: var(--text-light);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* Status Badge */
+.status-badge-container {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Tab Navigation ── */
+.details-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 0 1rem;
+}
+
+.details-tab-item {
+  background: none;
+  border: none;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-light);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: var(--transition);
+}
+
+.details-tab-item:hover {
+  color: var(--text-mid);
+}
+
+.details-tab-item.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+.tab-content-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Overview Tab – 3-Column Grid ── */
+.overview-tab-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 1.5rem;
+}
+
+.overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-sec-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Skills in detail view */
+.detail-skills-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.detail-skill-pill {
+  background: var(--bg-muted);
+  color: var(--text-mid);
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+}
+
+.exp-level-text {
+  font-size: 0.9rem;
+  color: var(--text-mid);
+  font-weight: 500;
+}
+
+/* ── Timeline (Work Experience & Projects) ── */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 1.25rem;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -1.25rem;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--bg-card);
+  z-index: 1;
+}
+
+.timeline-dot.active {
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.project-dot {
+  background: var(--blue);
+}
+
+.timeline-content {
+  padding-left: 0.5rem;
+}
+
+.timeline-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.timeline-title .company {
+  font-weight: 400;
+  color: var(--text-mid);
+}
+
+.timeline-date {
+  font-size: 0.78rem;
+  color: var(--text-light);
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.timeline-desc {
+  font-size: 0.84rem;
+  color: var(--text-mid);
+  margin: 0.35rem 0 0 0;
+  line-height: 1.5;
+}
+
+.proj-link {
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+/* ── Education ── */
+.edu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.edu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.edu-degree {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.edu-inst {
+  font-size: 0.82rem;
+  color: var(--text-mid);
+}
+
+.edu-meta {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.15rem;
+}
+
+.edu-duration {
+  font-size: 0.78rem;
+  color: var(--text-light);
+}
+
+.edu-grade {
+  font-size: 0.78rem;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* ── Detail Action Buttons (Download, Shortlist, Reject) ── */
+.detail-actions-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+.btn-detail-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  color: #fff;
+}
+
+.btn-detail-action:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-detail-action.download {
+  background: var(--primary);
+}
+
+.btn-detail-action.shortlist {
+  background: var(--green);
+}
+
+.btn-detail-action.reject {
+  background: var(--red);
+}
+
+/* ============================================================
+   3. RESUME TAB
+   ============================================================ */
+
+.resume-tab-view {
+  display: flex;
+  justify-content: center;
+}
+
+.resume-paper {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem 2.5rem;
+  max-width: 800px;
+  width: 100%;
+  box-shadow: var(--shadow-md);
+}
+
+.resume-paper-header {
+  text-align: center;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--text-dark);
+  margin-bottom: 1.25rem;
+}
+
+.resume-paper-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0 0 0.35rem 0;
+}
+
+.resume-contact-info {
+  font-size: 0.82rem;
+  color: var(--text-mid);
+}
+
+.resume-contact-info span {
+  white-space: nowrap;
+}
+
+.resume-paper-section {
+  margin-bottom: 1.25rem;
+}
+
+.resume-paper-section p {
+  font-size: 0.85rem;
+  color: var(--text-mid);
+  line-height: 1.6;
+  margin: 0.35rem 0 0 0;
+}
+
+.section-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.35rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.resume-skills-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.resume-skill-cat {
+  font-size: 0.84rem;
+  color: var(--text-mid);
+  line-height: 1.5;
+}
+
+.resume-item {
+  margin-bottom: 0.85rem;
+}
+
+.resume-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.88rem;
+  color: var(--text-dark);
+}
+
+.resume-item-date {
+  font-size: 0.78rem;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+.resume-item p {
+  font-size: 0.84rem;
+  color: var(--text-mid);
+  margin: 0.25rem 0 0 0;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   4. ANALYSIS TAB
+   ============================================================ */
+
+.analysis-tab-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.analysis-card {
+  background: var(--bg-card);
+  padding: 0;
+}
+
+.analysis-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0 0 1.25rem 0;
+}
+
+/* Score Section */
+.scores-grid {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.score-ring-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-ring {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 4px solid var(--primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  line-height: 1;
+}
+
+.score-max {
+  font-size: 0.7rem;
+  color: var(--text-light);
+}
+
+.ring-label {
+  font-size: 0.78rem;
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+/* Metric Bars */
+.score-metrics-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 200px;
+}
+
+.metric-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.metric-label {
+  font-size: 0.82rem;
+  color: var(--text-mid);
+  min-width: 130px;
+  flex-shrink: 0;
+}
+
+.metric-bar-container {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.metric-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.metric-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Analysis Reasoning */
+.analysis-reasoning {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--bg-muted);
+  border-radius: var(--radius-md);
+}
+
+.analysis-reasoning h4 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0 0 0.35rem 0;
+}
+
+.analysis-reasoning p {
+  font-size: 0.85rem;
+  color: var(--text-mid);
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* Strengths & Weaknesses */
+.strengths-weaknesses-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.sw-box {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+}
+
+.sw-box h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+}
+
+.sw-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sw-box ul li {
+  font-size: 0.84rem;
+  padding: 0.25rem 0;
+  line-height: 1.5;
+}
+
+.sw-box.strengths {
+  background: var(--green-bg);
+  color: #065f46;
+}
+
+.sw-box.strengths h4 {
+  color: #065f46;
+}
+
+.sw-box.weaknesses {
+  background: var(--red-bg);
+  color: #991b1b;
+}
+
+.sw-box.weaknesses h4 {
+  color: #991b1b;
+}
+
+/* Matching Roles */
+.matching-roles-sec {
+  margin-top: 0.5rem;
+}
+
+.matching-roles-sec h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0 0 0.5rem 0;
+}
+
+.roles-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.role-pill {
+  background: var(--primary-bg);
+  color: var(--primary);
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* ============================================================
+   5. ACTIVITY TAB
+   ============================================================ */
+
+.activity-tab-view {
+  padding: 0.5rem 0;
+}
+
+/* ============================================================
+   6. RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1024px) {
+  .overview-tab-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .education-col {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .candidates-header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .candidates-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .candidates-filters-row {
+    flex-direction: column;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+
+  /* Table → card layout on small screens */
+  .table-responsive {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .candidates-table thead {
+    display: none;
+  }
+
+  .candidates-table,
+  .candidates-table tbody,
+  .candidates-table tr,
+  .candidates-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .candidates-table tr {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .candidates-table td {
+    padding: 0.4rem 0;
+    border-bottom: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .candidates-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .candidates-table td[data-label="Candidate"] {
+    justify-content: flex-start;
+  }
+
+  .candidates-table td[data-label="Candidate"]::before {
+    display: none;
+  }
+
+  .candidates-table td[data-label="Actions"] {
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-light);
+    margin-top: 0.35rem;
+  }
+
+  .candidates-table td[data-label="Actions"]::before {
+    display: none;
+  }
+
+  /* Detail view responsive */
+  .profile-header-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.25rem;
+  }
+
+  .profile-header-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .overview-tab-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .education-col {
+    grid-column: auto;
+  }
+
+  .strengths-weaknesses-row {
+    grid-template-columns: 1fr;
+  }
+
+  .scores-grid {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .resume-paper {
+    padding: 1.25rem;
+  }
+
+  .resume-item-header {
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .details-tab-bar {
+    overflow-x: auto;
+    padding: 0 0.5rem;
+  }
+
+  .details-tab-item {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .tab-content-container {
+    padding: 1rem;
+  }
+
+  .detail-actions-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .btn-detail-action {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-avatar-large {
+    width: 50px;
+    height: 50px;
+    font-size: 1.1rem;
+  }
+
+  .profile-name {
+    font-size: 1.1rem;
+  }
+
+  .profile-meta-grid {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .score-badge-card {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .badge-value {
+    font-size: 1.1rem;
+  }
+
+  .actions-container {
+    flex-wrap: wrap;
+  }
+
+  .metric-label {
+    min-width: 90px;
+    font-size: 0.78rem;
+  }
+}

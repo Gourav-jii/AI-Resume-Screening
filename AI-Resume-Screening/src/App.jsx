@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import "./AppStyles.css";
 import Auth from "./components/Auth";
+import Candidates from "./components/Candidates";
+import Shortlisted from "./components/Shortlisted";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -9,7 +11,8 @@ function App() {
     const session = localStorage.getItem("auth_currentUser");
     return session ? JSON.parse(session) : null;
   });
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [selectedJobId, setSelectedJobId] = useState("");
   const [activeSection, setActiveSection] = useState("upload");
   const [jobTitle, setJobTitle] = useState("");
   const [department, setDepartment] = useState("");
@@ -17,10 +20,13 @@ function App() {
   const [skills, setSkills] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [showJobModal, setShowJobModal] = useState(false);
+  const [editingJob, setEditingJob] = useState(null); // null = add mode, object = edit mode
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [savedJobDescriptions, setSavedJobDescriptions] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [toast, setToast] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const toastTimer = useRef(null);
   const panelRef = useRef(null);
 
@@ -37,43 +43,100 @@ function App() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setSelectedFile(file || null);
+    const files = Array.from(e.target.files);
+    setSelectedFiles(files);
     setToast(null);
   };
 
+  const removeFile = (index) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleUpload = async () => {
-    if (!selectedFile) {
-      showToast("Please choose a resume file before uploading.", "error");
+    if (selectedFiles.length === 0) {
+      showToast("Please choose at least one resume file.", "error");
+      return;
+    }
+    if (!selectedJobId) {
+      showToast("Please select a job title before uploading.", "error");
       return;
     }
 
+    const selectedJob = savedJobDescriptions.find((job) => job._id === selectedJobId);
+
     setIsUploading(true);
+    setUploadProgress({ current: 0, total: selectedFiles.length });
     setToast(null);
 
-    const formData = new FormData();
-    formData.append("resume", selectedFile);
+    let successCount = 0;
+    let failCount    = 0;
 
     try {
-      const response = await fetch(
-        "http://localhost:5678/webhook-test/resume_upload",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const fd = new FormData();
+      selectedFiles.forEach((file) => {
+        fd.append("resume", file);
+      });
+      fd.append("jobId",          selectedJobId);
+      fd.append("jobTitle",       selectedJob?.jobTitle   || "");
+      fd.append("department",     selectedJob?.department || "");
+      fd.append("location",       selectedJob?.location   || "");
+      fd.append("skills",         selectedJob?.skills     || "");
+      fd.append("jobDescription", selectedJob?.description || "");
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
+      // Send all files in a single POST request
+      const res = await fetch(`${API_URL}/api/resume-upload`, {
+        method: "POST",
+        body:   fd,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
       }
 
-      showToast("Resume uploaded successfully!", "success");
-      setSelectedFile(null);
-    } catch (error) {
-      showToast("Upload failed. Please try again.", "error");
-    } finally {
-      setIsUploading(false);
+      const result = await res.json();
+
+      if (result.files && result.files.length > 0) {
+        for (let i = 0; i < result.files.length; i++) {
+          const fileInfo = result.files[i];
+          setUploadProgress({ current: i + 1, total: result.files.length });
+
+          // Save candidate placeholder to database
+          await fetch(`${API_URL}/api/candidates/save`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({
+              candidate_profile: { full_name: fileInfo.originalName.replace(/\.(pdf|doc|docx)$/i, "").replace(/[-_]+/g, " ").trim() },
+              filePath:     fileInfo.filePath,
+              originalName: fileInfo.originalName,
+              source:       "AI Resume Screening",
+              status:       "Pending",
+            }),
+          });
+          successCount++;
+        }
+      } else {
+        throw new Error("No files uploaded successfully.");
+      }
+    } catch (err) {
+      console.error("[Upload] Batch upload failed:", err.message);
+      failCount = selectedFiles.length;
     }
+
+    if (failCount === 0) {
+      showToast(`${successCount} resume${successCount > 1 ? "s" : ""} uploaded successfully!`, "success");
+      setActiveSection("candidates");
+    } else if (successCount === 0) {
+      showToast("All uploads failed. Please try again.", "error");
+    } else {
+      showToast(`${successCount} uploaded, ${failCount} failed.`, "error");
+      setActiveSection("candidates");
+    }
+
+    setSelectedFiles([]);
+    setSelectedJobId("");
+    setIsUploading(false);
+    setUploadProgress({ current: 0, total: 0 });
   };
 
   const handleJsonError = async (response) => {
@@ -90,6 +153,36 @@ function App() {
     return errorText || response.statusText;
   };
 
+  const openAddModal = () => {
+    setEditingJob(null);
+    setJobTitle("");
+    setDepartment("");
+    setLocation("");
+    setSkills("");
+    setJobDescription("");
+    setShowJobModal(true);
+  };
+
+  const openEditModal = (job) => {
+    setEditingJob(job);
+    setJobTitle(job.jobTitle);
+    setDepartment(job.department || "");
+    setLocation(job.location || "");
+    setSkills(job.skills || "");
+    setJobDescription(job.description || "");
+    setShowJobModal(true);
+  };
+
+  const closeModal = () => {
+    setShowJobModal(false);
+    setEditingJob(null);
+    setJobTitle("");
+    setDepartment("");
+    setLocation("");
+    setSkills("");
+    setJobDescription("");
+  };
+
   const handleJobDescriptionSubmit = async (e) => {
     e.preventDefault();
 
@@ -99,11 +192,15 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/job-description`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const isEditing = !!editingJob;
+      const url = isEditing
+        ? `${API_URL}/api/job-description/${editingJob._id}`
+        : `${API_URL}/api/job-description`;
+      const method = isEditing ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobTitle,
           department,
@@ -119,18 +216,32 @@ function App() {
         throw new Error(errorMessage || "Unable to save job description.");
       }
 
-      // Refresh list from backend to reflect persisted job descriptions
       await fetchJobs();
-      showToast("Job description saved.", "success");
-      setShowJobModal(false);
-      setJobTitle("");
-      setDepartment("");
-      setLocation("");
-      setSkills("");
-      setJobDescription("");
+      showToast(isEditing ? "Job updated successfully." : "Job description saved.", "success");
+      closeModal();
     } catch (error) {
       console.error("Save JD error:", error);
       showToast(error.message || "Failed to save job description.", "error");
+    }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/job-description/${jobId}?email=${encodeURIComponent(user.email)}`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        const errorMessage = await handleJsonError(response);
+        throw new Error(errorMessage || "Unable to delete job.");
+      }
+
+      await fetchJobs();
+      setDeleteConfirmId(null);
+      showToast("Job deleted.", "success");
+    } catch (error) {
+      showToast(error.message || "Failed to delete job.", "error");
     }
   };
 
@@ -144,9 +255,12 @@ function App() {
 
   // Fetch job descriptions from backend when the app loads and when user opens the Job section
   const fetchJobs = async () => {
+    if (!user?.email) return;
     try {
       setLoadingJobs(true);
-      const res = await fetch(`${API_URL}/api/job-description`);
+      const res = await fetch(
+        `${API_URL}/api/job-description?email=${encodeURIComponent(user.email)}`
+      );
       if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
       const data = await res.json();
       const jobs = Array.isArray(data) ? data : (data?.jobs || []);
@@ -161,9 +275,9 @@ function App() {
   };
 
   useEffect(() => {
-    fetchJobs();
+    if (user?.email) fetchJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (activeSection === "job") fetchJobs();
@@ -171,12 +285,17 @@ function App() {
 
   const handleLoginSuccess = (loggedInUser) => {
     setUser(loggedInUser);
+    setSavedJobDescriptions([]);
     showToast(`Welcome back, ${loggedInUser.name}!`, "success");
   };
 
   const handleLogout = () => {
     localStorage.removeItem("auth_currentUser");
     setUser(null);
+    setSavedJobDescriptions([]);
+    setSelectedJobId("");
+    setSelectedFiles([]);
+    setActiveSection("upload");
     showToast("Signed out successfully.", "success");
   };
 
@@ -232,148 +351,280 @@ function App() {
               >
                 Job Description
               </button>
+              <button
+                type="button"
+                className={`sidebar-item ${activeSection === "candidates" ? "active" : ""}`}
+                onClick={() => handleSidebarSelect("candidates")}
+              >
+                Candidates
+              </button>
+              <button
+                type="button"
+                className={`sidebar-item ${activeSection === "shortlisted" ? "active" : ""}`}
+                onClick={() => handleSidebarSelect("shortlisted")}
+              >
+                Shortlisted
+              </button>
             </aside>
 
             <main className="dashboard-content">
               {activeSection === "upload" && (
                 <section className="panel-card" ref={panelRef}>
-                  <div className="panel-header">
-                    <div>
-                      <span className="panel-label">Upload Resume</span>
-                      <h1>Resume Upload</h1>
-                    </div>
-                  </div>
-
-                  <div className="upload-header">
-                    <p className="upload-description">
+                  {/* Header row: label + title + description, all left-aligned */}
+                  <div className="upload-panel-header">
+                    <span className="panel-label">Upload Resume</span>
+                    <h1 className="upload-panel-title">Resume Upload</h1>
+                    <p className="upload-panel-desc">
                       Upload your resume in PDF or Word format and let the system
                       extract key details automatically.
                     </p>
                   </div>
 
-                  <div className="upload-form">
-                    <input
-                      id="resume-upload"
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={handleFileChange}
-                      className="file-input"
-                    />
-                    <label htmlFor="resume-upload" className="file-picker">
-                      {selectedFile ? selectedFile.name : "Choose resume file"}
-                    </label>
-
-                    <div className="upload-actions">
-                      <button
-                        type="button"
-                        onClick={handleUpload}
-                        className="upload-button"
-                        disabled={isUploading}
-                      >
-                        {isUploading ? "Uploading..." : "Upload Resume"}
-                      </button>
-                      <p className="file-hint">Supported: .pdf, .doc, .docx</p>
+                  {/* Two-column row: job title left, file picker right */}
+                  <div className="upload-two-col">
+                    {/* Left: Job Title Dropdown */}
+                    <div className="upload-col">
+                      <label htmlFor="job-select" className="upload-field-label">
+                        Job Title
+                      </label>
+                      <div className="job-select-container">
+                        <select
+                          id="job-select"
+                          className="job-select"
+                          value={selectedJobId}
+                          onChange={(e) => setSelectedJobId(e.target.value)}
+                        >
+                          <option value="">
+                            {loadingJobs
+                              ? "Loading jobs..."
+                              : savedJobDescriptions.length === 0
+                              ? "No jobs available"
+                              : "Select a job title"}
+                          </option>
+                          {savedJobDescriptions.map((job) => (
+                            <option key={job._id} value={job._id}>
+                              {job.jobTitle}
+                              {job.department ? ` · ${job.department}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="job-select-arrow">▾</span>
+                      </div>
+                      {selectedJobId && (() => {
+                        const job = savedJobDescriptions.find(j => j._id === selectedJobId);
+                        return job ? (
+                          <div className="job-select-preview">
+                            {job.location && <span> {job.location}</span>}
+                            {job.skills && <span> {job.skills}</span>}
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
-                  </div>
 
-                  <div className="panel-note">
-                    <h2>Professional dashboard design</h2>
-                    <p>
-                      A clear sidebar, polished navbar, and full-screen layout keep
-                      the interface polished and human-centered.
-                    </p>
+                    {/* Right: File Picker + Upload Button */}
+                    <div className="upload-col">
+                      <label className="upload-field-label">Resume Files</label>
+                      <input
+                        id="resume-upload"
+                        type="file"
+                        accept=".pdf"
+                        multiple
+                        onChange={handleFileChange}
+                        className="file-input"
+                      />
+                      <label htmlFor="resume-upload" className="file-picker">
+                        <span>
+                          {selectedFiles.length === 0
+                            ? "Choose resume files"
+                            : `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`}
+                        </span>
+                        <span className="file-picker-icon"></span>
+                      </label>
+
+                      {/* File list with count badge + remove */}
+                      {selectedFiles.length > 0 && (
+                        <div className="file-list">
+                          <div className="file-list-header">
+                            <span className="file-list-count">
+                              {selectedFiles.length} file{selectedFiles.length > 1 ? "s" : ""} ready
+                            </span>
+                            <button
+                              type="button"
+                              className="file-list-clear"
+                              onClick={() => setSelectedFiles([])}
+                            >
+                              Clear all
+                            </button>
+                          </div>
+                          <ul className="file-list-items">
+                            {selectedFiles.map((file, i) => (
+                              <li key={i} className="file-list-item">
+                                <span className="file-list-icon"></span>
+                                <span className="file-list-name">{file.name}</span>
+                                <span className="file-list-size">
+                                  {(file.size / 1024).toFixed(0)} KB
+                                </span>
+                                <button
+                                  type="button"
+                                  className="file-list-remove"
+                                  onClick={() => removeFile(i)}
+                                  title="Remove"
+                                >
+                                  ×
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <p className="file-hint">Supported: .pdf, .doc, .docx — multiple allowed</p>
+                      <div className="upload-submit-row">
+                        <button
+                          type="button"
+                          onClick={handleUpload}
+                          className="upload-button"
+                          disabled={isUploading}
+                        >
+                          {isUploading
+                            ? "Uploading..."
+                            : `Upload${selectedFiles.length > 1 ? ` ${selectedFiles.length} Resumes` : " Resume"}`}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </section>
               )}
 
               {activeSection === "job" && (
                 <section className="panel-card" ref={panelRef}>
-                  <div className="panel-header">
-                    <div>
+
+                  {/* ── Top bar ── */}
+                  <div className="jd-topbar">
+                    <div className="jd-topbar-left">
                       <span className="panel-label">Job Description</span>
-                      <h1>Position Details</h1>
+                      <h1 className="jd-title">Position Details</h1>
+                      <p className="jd-subtitle">
+                        Manage your open positions. Click <strong>Add Job</strong> to create a new listing.
+                      </p>
                     </div>
-                  </div>
-
-                  <p className="upload-description">
-                    Click Add Job to open a full job detail modal and save the
-                    position data in one place.
-                  </p>
-
-                  <div className="job-actions-bar">
                     <button
                       type="button"
-                      className="primary-button"
-                      onClick={() => setShowJobModal(true)}
+                      className="add-job-button"
+                      onClick={openAddModal}
                     >
-                      Add Job
+                      + Add Job
                     </button>
                   </div>
 
+                  {/* ── Job list ── */}
                   {loadingJobs ? (
                     <p className="empty-note">Loading job descriptions…</p>
                   ) : savedJobDescriptions.length > 0 ? (
-                    <div className="saved-jobs-section">
-                      <div className="saved-jobs-header">
-                        <h3>Saved Job Descriptions</h3>
-                        <span className="saved-jobs-count">{savedJobDescriptions.length} saved</span>
+                    <div className="jd-list-section">
+                      <div className="jd-list-meta">
+                        <span className="jd-list-count">{savedJobDescriptions.length} position{savedJobDescriptions.length !== 1 ? "s" : ""}</span>
                       </div>
 
-                      <ul className="saved-job-list">
+                      <ul className="jd-list">
                         {savedJobDescriptions.map((job, index) => (
-                          <li key={index} className="saved-job-item">
-                            <details>
-                              <summary>
-                                <div className="saved-job-top">
-                                  <h4>{job.jobTitle}</h4>
-                                  <span className="saved-job-meta">
-                                    {job.department || "No department"}
-                                  </span>
-                                </div>
-                              </summary>
+                          <li key={index} className="jd-card">
 
-                              <div className="saved-job-content">
-                                <p>
-                                  <strong>Location:</strong> {job.location || "—"}
-                                </p>
-                                <p>
-                                  <strong>Skills:</strong> {job.skills || "—"}
-                                </p>
-                                <p className="saved-job-desc">{job.jobDescription}</p>
+                            {/* Row 1: avatar+title+dept  |  edit+delete */}
+                            <div className="jd-card-top">
+                              <div className="jd-card-left">
+                                <div className="jd-card-avatar">
+                                  {job.jobTitle.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="jd-card-info">
+                                  <h4 className="jd-card-title">{job.jobTitle}</h4>
+                                  {job.department && (
+                                    <span className="jd-card-dept">{job.department}</span>
+                                  )}
+                                </div>
                               </div>
-                            </details>
+
+                              <div className="jd-card-actions">
+                                <button
+                                  type="button"
+                                  className="jd-action-btn jd-edit-btn"
+                                  onClick={() => openEditModal(job)}
+                                >
+                                   Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="jd-action-btn jd-delete-btn"
+                                  onClick={() => setDeleteConfirmId(job._id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Row 2: location + skills badges */}
+                            {(job.location || job.skills) && (
+                              <div className="jd-card-badges">
+                                {job.location && (
+                                  <span className="jd-badge jd-badge-loc"> {job.location}</span>
+                                )}
+                                {job.skills && (
+                                  <span className="jd-badge jd-badge-skill"> {job.skills}</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Row 3: description */}
+                            {job.description && (
+                              <p className="jd-card-desc">{job.description}</p>
+                            )}
+
+                            {/* Inline delete confirm */}
+                            {deleteConfirmId === job._id && (
+                              <div className="jd-delete-confirm">
+                                <p>Delete <strong>{job.jobTitle}</strong>? This cannot be undone.</p>
+                                <div className="jd-delete-actions">
+                                  <button
+                                    type="button"
+                                    className="jd-confirm-cancel"
+                                    onClick={() => setDeleteConfirmId(null)}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="jd-confirm-delete"
+                                    onClick={() => handleDeleteJob(job._id)}
+                                  >
+                                    Yes, Delete
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </li>
                         ))}
                       </ul>
                     </div>
                   ) : (
-                    <p className="empty-note">
-                      No job descriptions added yet. Use Add Job to enter the full
-                      position details.
-                    </p>
+                    <div className="jd-empty">
+                      <div className="jd-empty-icon"></div>
+                      <p className="jd-empty-text">No positions added yet.</p>
+                      <p className="jd-empty-sub">Click <strong>Add Job</strong> to create your first listing.</p>
+                    </div>
                   )}
-
-                
 
                   {showJobModal && (
                     <div className="modal-overlay">
                       <div className="modal">
                         <div className="modal-header">
                           <div>
-                            <h2>Add Job Description</h2>
-                            <p>Enter all job details in one popup.</p>
+                            <h2>{editingJob ? "Edit Job Description" : "Add Job Description"}</h2>
+                            <p>{editingJob ? "Update the details below." : "Enter all job details in one popup."}</p>
                           </div>
                           <button
                             type="button"
                             className="close-button"
-                            onClick={() => {
-                              setShowJobModal(false);
-                              setJobTitle("");
-                              setDepartment("");
-                              setLocation("");
-                              setSkills("");
-                              setJobDescription("");
-                            }}
+                            onClick={closeModal}
                           >
                             ×
                           </button>
@@ -432,25 +683,30 @@ function App() {
                             <button
                               type="button"
                               className="secondary-button"
-                              onClick={() => {
-                                setShowJobModal(false);
-                                setJobTitle("");
-                                setDepartment("");
-                                setLocation("");
-                                setSkills("");
-                                setJobDescription("");
-                              }}
+                              onClick={closeModal}
                             >
                               Cancel
                             </button>
                             <button type="submit" className="primary-button">
-                              Save Job Description
+                              {editingJob ? "Update Job" : "Save Job Description"}
                             </button>
                           </div>
                         </form>
                       </div>
                     </div>
                   )}
+                </section>
+              )}
+
+              {activeSection === "candidates" && (
+                <section className="panel-card" ref={panelRef}>
+                  <Candidates />
+                </section>
+              )}
+
+              {activeSection === "shortlisted" && (
+                <section className="panel-card" ref={panelRef}>
+                  <Shortlisted />
                 </section>
               )}
             </main>
