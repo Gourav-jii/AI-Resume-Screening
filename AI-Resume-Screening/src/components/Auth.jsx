@@ -73,11 +73,14 @@ function Auth({ onLoginSuccess }) {
         }
 
         // Save session locally for persistence
-        localStorage.setItem("auth_currentUser", JSON.stringify(data));
+        localStorage.setItem("auth_currentUser", JSON.stringify(data.user));
+        localStorage.setItem("auth_token", data.token);
+
         setSuccess("Login successful!");
         setTimeout(() => {
           onLoginSuccess(data);
         }, 800);
+
 
       } else {
         // Signup API Call

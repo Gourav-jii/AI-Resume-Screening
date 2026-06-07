@@ -14,7 +14,11 @@ export default function Shortlisted() {
   const fetchShortlisted = async () => {
     try {
       setLoading(true);
-      const res  = await fetch(`${API_URL}/api/candidates`);
+      const token = localStorage.getItem("auth_token");
+      const res  = await fetch(`${API_URL}/api/candidates`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
       if (!res.ok) throw new Error("Failed to fetch candidates");
       const data = await res.json();
       // Show all candidates — status filter handled in UI
@@ -86,11 +90,28 @@ export default function Shortlisted() {
     e.stopPropagation();
     if (c.filePath) {
       const a    = document.createElement("a");
-      a.href     = `${API_URL}/api/candidates/${c._id}/download`;
-      a.download = c.originalName || c.filePath;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const token = localStorage.getItem("auth_token");
+      // Download endpoint requires JWT; use fetch+blob to attach header
+      const doDownload = async () => {
+        const r = await fetch(`${API_URL}/api/candidates/${c._id}/download`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!r.ok) {
+          alert("Failed to download resume.");
+          return;
+        }
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = c.originalName || c.filePath;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      await doDownload();
+
     } else {
       alert("Original resume file not stored. Please re-upload this resume.");
     }

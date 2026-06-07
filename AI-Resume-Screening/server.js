@@ -9,8 +9,10 @@ import multer from "multer";
 import fs from "fs";
 import FormData from "form-data";
 import fetch from "node-fetch";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -101,8 +103,10 @@ const resumeAnalysisSchema = new mongoose.Schema({
 });
 
 const resumesDataSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
   candidate_profile: candidateProfileSchema,
   professional_summary: { type: String, default: "" },
+
   education: mongoose.Schema.Types.Mixed,
   technical_skills: mongoose.Schema.Types.Mixed,
   soft_skills: [String],
@@ -122,7 +126,34 @@ const resumesDataSchema = new mongoose.Schema({
 
 const ResumeData = mongoose.model("ResumeData", resumesDataSchema);
 
+// Auth middleware (JWT)
+const requireAuth = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const [scheme, token] = authHeader.split(" ");
+
+    if (scheme !== "Bearer" || !token) {
+      return res.status(401).json({ message: "Missing or invalid Authorization header." });
+    }
+
+    const jwtSecret = process.env.JWT_SECRET || "change-me";
+    const payload = jwt.verify(token, jwtSecret);
+
+    req.user = {
+      userId: payload.userId,
+      email: payload.email,
+      name: payload.name,
+    };
+
+    next();
+  } catch (err) {
+    console.error("Auth error:", err);
+    res.status(401).json({ message: "Unauthorized." });
+  }
+};
+
 // REST API Endpoints
+
 
 // POST /api/auth/signup
 app.post("/api/auth/signup", async (req, res) => {
@@ -179,11 +210,23 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password." });
     }
 
-    // Return session data (excluding password)
+    // Return JWT (excluding password)
+    const jwtSecret = process.env.JWT_SECRET || "change-me";
+    const token = jwt.sign(
+      { userId: user._id.toString(), email: user.email, name: user.name },
+      jwtSecret,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+    );
+
     res.json({
-      name: user.name,
-      email: user.email,
+      token,
+      user: {
+        userId: user._id.toString(),
+        name: user.name,
+        email: user.email,
+      },
     });
+
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Server error. Please try again." });
@@ -237,6 +280,7 @@ app.get("/api/job-description", async (req, res) => {
 
 // POST /api/job-description
 app.post("/api/job-description", async (req, res) => {
+
   try {
     const { jobTitle, department, location, skills, description, createdBy } = req.body;
 
@@ -309,9 +353,9 @@ app.delete("/api/job-description/:id", async (req, res) => {
 });
 
 // GET /api/candidates
-app.get("/api/candidates", async (req, res) => {
+app.get("/api/candidates", requireAuth, async (req, res) => {
   try {
-    const candidates = await ResumeData.find().sort({ created_at: -1 });
+    const candidates = await ResumeData.find({ userId: req.user.userId }).sort({ created_at: -1 });
     res.json(candidates);
   } catch (error) {
     console.error("Candidates fetch error:", error);
@@ -319,27 +363,28 @@ app.get("/api/candidates", async (req, res) => {
   }
 });
 
+
 // PUT /api/candidates/:id/status
-app.put("/api/candidates/:id/status", async (req, res) => {
+app.put("/api/candidates/:id/status", requireAuth, async (req, res) => {
   try {
     const { status } = req.body; // Shortlisted, Rejected, Pending
-    
-    // We update both the overall 'status' and the 'resume_analysis.shortlisting_decision' to keep them in sync
-    const candidate = await ResumeData.findByIdAndUpdate(
-      req.params.id,
-      { 
-        $set: { 
+
+    const candidate = await ResumeData.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.userId },
+      {
+        $set: {
           status,
-          "resume_analysis.shortlisting_decision": status === "Shortlisted" ? "Selected" : status === "Rejected" ? "Rejected" : "Hold"
-        } 
+          "resume_analysis.shortlisting_decision":
+            status === "Shortlisted" ? "Selected" : status === "Rejected" ? "Rejected" : "Hold",
+        },
       },
       { new: true }
     );
-    
+
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found." });
     }
-    
+
     res.json(candidate);
   } catch (error) {
     console.error("Candidate status update error:", error);
@@ -347,11 +392,13 @@ app.put("/api/candidates/:id/status", async (req, res) => {
   }
 });
 
+
 // DELETE /api/candidates/:id
-app.delete("/api/candidates/:id", async (req, res) => {
+app.delete("/api/candidates/:id", requireAuth, async (req, res) => {
   try {
-    const candidate = await ResumeData.findById(req.params.id);
+    const candidate = await ResumeData.findOne({ _id: req.params.id, userId: req.user.userId });
     if (!candidate) return res.status(404).json({ message: "Candidate not found." });
+
 
     // Delete the stored PDF from disk if it exists
     if (candidate.filePath) {
@@ -359,8 +406,9 @@ app.delete("/api/candidates/:id", async (req, res) => {
       if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
     }
 
-    await ResumeData.findByIdAndDelete(req.params.id);
+    await ResumeData.deleteOne({ _id: req.params.id, userId: req.user.userId });
     res.json({ message: "Candidate deleted successfully." });
+
   } catch (error) {
     console.error("Candidate delete error:", error);
     res.status(500).json({ message: "Server error. Please try again." });
@@ -369,7 +417,8 @@ app.delete("/api/candidates/:id", async (req, res) => {
 
 // POST /api/resume-upload — Save files to disk + forward to N8N + return files list
 // This is the main upload endpoint called from the React frontend
-app.post("/api/resume-upload", upload.array("resume", 20), async (req, res) => {
+app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (req, res) => {
+
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: "No files uploaded." });
@@ -440,10 +489,19 @@ app.post("/api/resume-upload", upload.array("resume", 20), async (req, res) => {
 });
 
 // POST /api/candidates/save — Save parsed candidate data with filePath
-app.post("/api/candidates/save", async (req, res) => {
+app.post("/api/candidates/save", requireAuth, async (req, res) => {
   try {
     const data = req.body;
-    const candidate = await new ResumeData(data).save();
+
+    // userId must come from JWT, not the client
+    const { userId: _ignoredUserId, ...safeData } = data || {};
+
+    const candidate = await new ResumeData({
+      ...safeData,
+      userId: req.user.userId,
+    }).save();
+
+
     res.status(201).json(candidate);
   } catch (error) {
     console.error("Candidate save error:", error);
@@ -451,19 +509,25 @@ app.post("/api/candidates/save", async (req, res) => {
   }
 });
 
+
 // POST /api/candidates/upload-file — store original PDF for a candidate
-app.post("/api/candidates/upload-file", upload.single("resume"), async (req, res) => {
+app.post("/api/candidates/upload-file", requireAuth, upload.single("resume"), async (req, res) => {
+
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded." });
     const { candidateId } = req.body;
 
     if (candidateId) {
-      // Link file to existing candidate record
-      await ResumeData.findByIdAndUpdate(candidateId, {
-        filePath:     req.file.filename,
-        originalName: req.file.originalname,
-      });
+      // Link file to existing candidate record (ownership enforced)
+      await ResumeData.findOneAndUpdate(
+        { _id: candidateId, userId: req.user.userId },
+        {
+          filePath: req.file.filename,
+          originalName: req.file.originalname,
+        }
+      );
     }
+
 
     res.json({
       filePath:     req.file.filename,
@@ -477,10 +541,11 @@ app.post("/api/candidates/upload-file", upload.single("resume"), async (req, res
 });
 
 // GET /api/candidates/:id/download — download original resume PDF
-app.get("/api/candidates/:id/download", async (req, res) => {
+app.get("/api/candidates/:id/download", requireAuth, async (req, res) => {
   try {
-    const candidate = await ResumeData.findById(req.params.id);
+    const candidate = await ResumeData.findOne({ _id: req.params.id, userId: req.user.userId });
     if (!candidate) return res.status(404).json({ message: "Candidate not found." });
+
 
     if (!candidate.filePath) {
       return res.status(404).json({ message: "No resume file stored for this candidate." });

@@ -23,7 +23,11 @@ export default function Candidates() {
   const fetchCandidates = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/candidates`);
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`${API_URL}/api/candidates`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
       if (!res.ok) throw new Error("Failed to fetch candidates");
       const data = await res.json();
       setCandidates(data);
@@ -42,11 +46,16 @@ export default function Candidates() {
 
   const handleUpdateStatus = async (candidateId, newStatus) => {
     try {
+      const token = localStorage.getItem("auth_token");
       const res = await fetch(`${API_URL}/api/candidates/${candidateId}/status`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ status: newStatus })
       });
+
       if (!res.ok) throw new Error("Failed to update status");
       const updatedCandidate = await res.json();
       setCandidates(prev => prev.map(c => c._id === candidateId ? updatedCandidate : c));
@@ -64,7 +73,12 @@ export default function Candidates() {
     if (e) e.stopPropagation();
     if (!window.confirm("Delete this candidate? This cannot be undone.")) return;
     try {
-      const res = await fetch(`${API_URL}/api/candidates/${candidateId}`, { method: "DELETE" });
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`${API_URL}/api/candidates/${candidateId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
       if (!res.ok) throw new Error("Failed to delete candidate");
       setCandidates(prev => prev.filter(c => c._id !== candidateId));
       if (selectedCandidate?._id === candidateId) setSelectedCandidate(null);

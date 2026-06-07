@@ -11,6 +11,9 @@ function App() {
     const session = localStorage.getItem("auth_currentUser");
     return session ? JSON.parse(session) : null;
   });
+
+  const token = localStorage.getItem("auth_token") || null;
+
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [activeSection, setActiveSection] = useState("upload");
@@ -283,15 +286,26 @@ function App() {
     if (activeSection === "job") fetchJobs();
   }, [activeSection]);
 
-  const handleLoginSuccess = (loggedInUser) => {
-    setUser(loggedInUser);
+  const handleLoginSuccess = (loggedInData) => {
+    // loggedInData may be { token, user } from the backend
+    if (loggedInData?.token) {
+      localStorage.setItem("auth_token", loggedInData.token);
+      setUser(loggedInData.user || null);
+    } else {
+      // fallback for older shape
+      setUser(loggedInData);
+    }
+
     setSavedJobDescriptions([]);
-    showToast(`Welcome back, ${loggedInUser.name}!`, "success");
+    showToast(`Welcome back, ${loggedInData?.user?.name || loggedInData?.name || "User"}!`, "success");
   };
+
 
   const handleLogout = () => {
     localStorage.removeItem("auth_currentUser");
+    localStorage.removeItem("auth_token");
     setUser(null);
+
     setSavedJobDescriptions([]);
     setSelectedJobId("");
     setSelectedFiles([]);
