@@ -1338,3 +1338,197 @@
 [data-theme="dark"] .edu-duration {
   color: var(--dash-text-light, #64647a);
 }
+
+/* ============================================================
+   8. BULK SELECT
+   ============================================================ */
+
+/* Checkbox column — narrow */
+.col-check {
+  width: 44px;
+  padding-left: 14px !important;
+  padding-right: 4px !important;
+}
+
+/* Custom checkbox styling */
+.bulk-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #7f56da;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* Selected row highlight */
+.row-selected {
+  background: rgba(127, 86, 218, 0.06) !important;
+}
+
+.row-selected td {
+  border-color: rgba(127, 86, 218, 0.1);
+}
+
+[data-theme="dark"] .row-selected {
+  background: rgba(139, 92, 246, 0.1) !important;
+}
+
+/* ── Bulk action bar ── */
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: rgba(127, 86, 218, 0.08);
+  border: 1px solid rgba(127, 86, 218, 0.2);
+  border-radius: 10px;
+  animation: fadeInBar 0.18s ease;
+}
+
+@keyframes fadeInBar {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bulk-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7f56da;
+  white-space: nowrap;
+}
+
+.bulk-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  white-space: nowrap;
+}
+
+.bulk-delete-btn:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.bulk-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bulk-clear-btn {
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid rgba(127, 86, 218, 0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7f56da;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.bulk-clear-btn:hover {
+  background: rgba(127, 86, 218, 0.1);
+}
+
+/* Dark mode */
+[data-theme="dark"] .bulk-action-bar {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.25);
+}
+
+[data-theme="dark"] .bulk-count {
+  color: #a78bfa;
+}
+
+[data-theme="dark"] .bulk-clear-btn {
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+/* Responsive — hide checkbox col on tiny screens */
+@media (max-width: 480px) {
+  .col-check { display: none; }
+  .bulk-action-bar { flex-wrap: wrap; }
+}
+
+/* ── Select mode button ── */
+.btn-select-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1.5px solid rgba(127, 86, 218, 0.3);
+  border-radius: 8px;
+  background: transparent;
+  color: #7f56da;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-select-mode:hover {
+  background: rgba(127, 86, 218, 0.08);
+  border-color: rgba(127, 86, 218, 0.5);
+}
+
+/* ── Select mode active bar (replaces the button) ── */
+.select-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: rgba(127, 86, 218, 0.08);
+  border: 1.5px solid rgba(127, 86, 218, 0.22);
+  border-radius: 10px;
+  animation: fadeInBar 0.15s ease;
+  flex-wrap: wrap;
+}
+
+.btn-cancel-select {
+  padding: 5px 11px;
+  background: none;
+  border: 1px solid rgba(127, 86, 218, 0.25);
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7f56da;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-cancel-select:hover {
+  background: rgba(127, 86, 218, 0.1);
+}
+
+/* Dark mode */
+[data-theme="dark"] .btn-select-mode {
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+[data-theme="dark"] .btn-select-mode:hover {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+[data-theme="dark"] .select-mode-bar {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.25);
+}
+
+[data-theme="dark"] .btn-cancel-select {
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.3);
+}

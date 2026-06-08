@@ -143,9 +143,9 @@ export default function Dashboard({ user, onNavigate }) {
             <div className="db-stat-body">
               <span className="db-stat-label">{s.label}</span>
               <span className="db-stat-value">{loading ? "—" : s.value}</span>
-              <span className={`db-stat-trend ${s.up ? "up" : "down"}`}>
+              {/* <span className={`db-stat-trend ${s.up ? "up" : "down"}`}>
                 {s.up ? "↑" : "↓"} {s.trend} from last week
-              </span>
+              </span> */}
             </div>
           </div>
         ))}

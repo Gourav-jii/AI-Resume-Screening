@@ -19,6 +19,11 @@ export default function Candidates() {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [activeTab, setActiveTab] = useState("Overview");
 
+  // ── Bulk select state ──
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+
   // Fetch candidates from API
   const fetchCandidates = async () => {
     try {
@@ -86,6 +91,46 @@ export default function Candidates() {
       console.error(err);
       alert("Error deleting candidate: " + err.message);
     }
+  };
+
+  // ── Bulk select helpers ──
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredCandidates.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredCandidates.map(c => c._id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} selected candidate${selectedIds.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
+
+    setBulkDeleting(true);
+    const token = localStorage.getItem("auth_token");
+    const ids = [...selectedIds];
+
+    const results = await Promise.allSettled(
+      ids.map(id =>
+        fetch(`${API_URL}/api/candidates/${id}`, {
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+      )
+    );
+
+    const deleted = ids.filter((_, i) => results[i].status === "fulfilled");
+    setCandidates(prev => prev.filter(c => !deleted.includes(c._id)));
+    setSelectedIds(new Set());
+    setBulkDeleting(false);
   };
 
   // Download: use stored PDF if available, else generate text report
@@ -667,6 +712,34 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
           {uniqueExperience.map((exp, idx) => <option key={idx} value={exp}>{exp}</option>)}
         </select>
 
+        {/* Select mode toggle button */}
+        {!selectMode ? (
+          <button
+            className="btn-select-mode"
+            onClick={() => setSelectMode(true)}
+          >
+            ☑ Select
+          </button>
+        ) : (
+          <div className="select-mode-bar">
+            <span className="bulk-count">{selectedIds.size} selected</span>
+            {selectedIds.size > 0 && (
+              <button
+                className="bulk-delete-btn"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? "Deleting…" : `🗑 Delete ${selectedIds.size}`}
+              </button>
+            )}
+            <button
+              className="btn-cancel-select"
+              onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}
+            >
+              ✕ Cancel
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Loading & Error Indicators */}
@@ -690,6 +763,20 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
           <table className="candidates-table">
             <thead>
               <tr>
+                {selectMode && (
+                  <th className="col-check">
+                    <input
+                      type="checkbox"
+                      className="bulk-checkbox"
+                      checked={selectedIds.size === filteredCandidates.length && filteredCandidates.length > 0}
+                      ref={el => {
+                        if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredCandidates.length;
+                      }}
+                      onChange={toggleSelectAll}
+                      title="Select all"
+                    />
+                  </th>
+                )}
                 <th>Candidate</th>
                 <th>Skills</th>
                 <th>Experience</th>
@@ -705,9 +792,23 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
                 const skillsList = getCandidateSkillsList(candidate);
                 const avatarStyle = getAvatarColor(name);
                 const scoreColor = getScoreColor(candidate.resume_analysis?.ats_score || 0);
+                const isChecked = selectedIds.has(candidate._id);
 
                 return (
-                  <tr key={candidate._id}>
+                  <tr
+                    key={candidate._id}
+                    className={isChecked ? "row-selected" : ""}
+                  >
+                    {selectMode && (
+                      <td className="col-check" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="bulk-checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleSelect(candidate._id)}
+                        />
+                      </td>
+                    )}
                     <td data-label="Candidate">
                       <div className="candidate-info">
                         <div className="candidate-avatar" style={{ backgroundColor: avatarStyle.bg, color: avatarStyle.text }}>
