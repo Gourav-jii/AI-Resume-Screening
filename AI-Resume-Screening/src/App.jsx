@@ -3,6 +3,8 @@ import "./AppStyles.css";
 import Auth from "./components/Auth";
 import Candidates from "./components/Candidates";
 import Shortlisted from "./components/Shortlisted";
+import AIAnalysis from "./components/AIAnalysis";
+import Dashboard from "./components/Dashboard";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -12,11 +14,29 @@ function App() {
     return session ? JSON.parse(session) : null;
   });
 
+  // Dark mode — persisted in localStorage
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved === "dark";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.setAttribute("data-theme", "dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      root.removeAttribute("data-theme");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
+
   const token = localStorage.getItem("auth_token") || null;
 
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState("");
-  const [activeSection, setActiveSection] = useState("upload");
+  const [activeSection, setActiveSection] = useState("dashboard");
   const [jobTitle, setJobTitle] = useState("");
   const [department, setDepartment] = useState("");
   const [location, setLocation] = useState("");
@@ -30,8 +50,21 @@ function App() {
   const [toast, setToast] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const toastTimer = useRef(null);
   const panelRef = useRef(null);
+  const userMenuRef = useRef(null);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const showToast = (message, type = "success") => {
     if (toastTimer.current) {
@@ -90,6 +123,7 @@ function App() {
       const res = await fetch(`${API_URL}/api/resume-upload`, {
         method: "POST",
         body:   fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (!res.ok) {
@@ -107,7 +141,10 @@ function App() {
           // Save candidate placeholder to database
           await fetch(`${API_URL}/api/candidates/save`, {
             method:  "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
             body:    JSON.stringify({
               candidate_profile: { full_name: fileInfo.originalName.replace(/\.(pdf|doc|docx)$/i, "").replace(/[-_]+/g, " ").trim() },
               filePath:     fileInfo.filePath,
@@ -309,7 +346,7 @@ function App() {
     setSavedJobDescriptions([]);
     setSelectedJobId("");
     setSelectedFiles([]);
-    setActiveSection("upload");
+    setActiveSection("dashboard");
     showToast("Signed out successfully.", "success");
   };
 
@@ -328,29 +365,82 @@ function App() {
               </div>
             </div>
 
-            <div className="topbar-actions">
-              <div className="topbar-user">
-                <div className="user-avatar">
-                  {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-                </div>
-                <div className="user-meta">
-                  <span className="user-name">{user.name}</span>
-                  <small className="user-email">{user.email}</small>
-                </div>
-              </div>
+            {/* User menu — top right */}
+            <div className="topbar-user-menu" ref={userMenuRef}>
               <button
                 type="button"
-                className="signout-button"
-                onClick={handleLogout}
+                className="topbar-user-trigger"
+                onClick={() => setUserMenuOpen((o) => !o)}
+                aria-label="User menu"
               >
-                Sign Out
+                <div className="topbar-avatar">
+                  {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                </div>
+                <div className="topbar-user-info">
+                  <span className="topbar-user-name">{user.name || "User"}</span>
+                  <span className="topbar-user-email">{user.email}</span>
+                </div>
+                <svg className={`topbar-chevron ${userMenuOpen ? "open" : ""}`} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
               </button>
+
+              {userMenuOpen && (
+                <div className="topbar-dropdown">
+                  {/* Profile info */}
+                  <div className="dropdown-profile">
+                    <div className="dropdown-avatar">
+                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                    <div>
+                      <div className="dropdown-name">{user.name || "User"}</div>
+                      <div className="dropdown-email">{user.email}</div>
+                    </div>
+                  </div>
+
+                  <div className="dropdown-divider" />
+
+                  {/* Theme toggle inside dropdown */}
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => setDarkMode((d) => !d)}
+                  >
+                    <span className="dropdown-item-icon">{darkMode ? "" : ""}</span>
+                    <span>{darkMode ? "Dark Mode" : "Light Mode"}</span>
+                    <span className="dropdown-item-badge">{darkMode ? "On" : "Off"}</span>
+                  </button>
+
+                  <div className="dropdown-divider" />
+
+                  {/* Sign out */}
+                  <button
+                    type="button"
+                    className="dropdown-item dropdown-signout"
+                    onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                      <polyline points="16 17 21 12 16 7"/>
+                      <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
             </div>
           </header>
 
           <div className="dashboard-layout">
             <aside className="dashboard-sidebar">
               <div className="sidebar-heading">Workspace</div>
+              <button
+                type="button"
+                className={`sidebar-item ${activeSection === "dashboard" ? "active" : ""}`}
+                onClick={() => handleSidebarSelect("dashboard")}
+              >
+                Dashboard
+              </button>
               <button
                 type="button"
                 className={`sidebar-item ${activeSection === "upload" ? "active" : ""}`}
@@ -379,9 +469,58 @@ function App() {
               >
                 Shortlisted
               </button>
+              <button
+                type="button"
+                className={`sidebar-item ${activeSection === "aianalysis" ? "active" : ""}`}
+                onClick={() => handleSidebarSelect("aianalysis")}
+              >
+                AI Analysis
+              </button>
+
+              {/* User profile at bottom of sidebar */}
+              <div className="sidebar-spacer" />
+
+              {/* Theme toggle */}
+              <button
+                type="button"
+                className="theme-toggle-btn"
+                onClick={() => setDarkMode((d) => !d)}
+                title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                <span className="theme-toggle-track">
+                  <span className="theme-toggle-thumb" />
+                </span>
+                <span className="theme-toggle-label">
+                  {darkMode ? "Dark Mode" : "Light Mode"}
+                </span>
+              </button>
+
+              <div className="sidebar-user-card">
+                <div className="sidebar-user-avatar">
+                  {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                </div>
+                <div className="sidebar-user-info">
+                  <span className="sidebar-user-name">{user.name}</span>
+                  <small className="sidebar-user-email">{user.email}</small>
+                </div>
+                <button
+                  type="button"
+                  className="sidebar-signout-btn"
+                  onClick={handleLogout}
+                  title="Sign Out"
+                >
+                  ⏻
+                </button>
+              </div>
             </aside>
 
             <main className="dashboard-content">
+              {activeSection === "dashboard" && (
+                <section className="panel-card" ref={panelRef}>
+                  <Dashboard user={user} onNavigate={handleSidebarSelect} />
+                </section>
+              )}
+
               {activeSection === "upload" && (
                 <section className="panel-card" ref={panelRef}>
                   {/* Header row: label + title + description, all left-aligned */}
@@ -721,6 +860,12 @@ function App() {
               {activeSection === "shortlisted" && (
                 <section className="panel-card" ref={panelRef}>
                   <Shortlisted />
+                </section>
+              )}
+
+              {activeSection === "aianalysis" && (
+                <section className="panel-card" ref={panelRef}>
+                  <AIAnalysis />
                 </section>
               )}
             </main>

@@ -352,10 +352,92 @@ app.delete("/api/job-description/:id", async (req, res) => {
   }
 });
 
+// Helper to merge N8N parsed resumes into placeholders
+async function mergeCandidates() {
+  try {
+    const allDocs = await ResumeData.find({});
+    
+    const placeholders = [];
+    const parsedResumes = [];
+    
+    allDocs.forEach(doc => {
+      const hasFilePath = !!doc.filePath;
+      const isParsed = doc.resume_analysis && (doc.resume_analysis.ats_score > 0 || doc.resume_analysis.experience_level || doc.candidate_profile?.email);
+      
+      if (hasFilePath && !isParsed) {
+        placeholders.push(doc);
+      } else if (!hasFilePath && isParsed) {
+        parsedResumes.push(doc);
+      }
+    });
+    
+    for (const parsed of parsedResumes) {
+      let bestMatch = null;
+      let minTimeDiff = Infinity;
+      
+      for (const placeholder of placeholders) {
+        const parsedTime = parsed.created_at || parsed._id.getTimestamp();
+        const placeholderTime = placeholder.created_at || placeholder._id.getTimestamp();
+        const timeDiff = Math.abs(new Date(parsedTime) - new Date(placeholderTime));
+        
+        if (timeDiff < 300000) { // 5 minutes
+          const parsedName = (parsed.candidate_profile?.full_name || "").toLowerCase();
+          const placeholderName = (placeholder.candidate_profile?.full_name || "").toLowerCase();
+          
+          const parsedWords = parsedName.split(/\s+/).filter(w => w.length >= 3);
+          const placeholderWords = placeholderName.split(/\s+/).filter(w => w.length >= 3);
+          
+          const sharesWord = parsedWords.some(w => placeholderWords.includes(w));
+          
+          if (sharesWord || timeDiff < minTimeDiff) {
+            bestMatch = placeholder;
+            minTimeDiff = timeDiff;
+          }
+        }
+      }
+      
+      if (bestMatch) {
+        bestMatch.candidate_profile = {
+          full_name: parsed.candidate_profile?.full_name || bestMatch.candidate_profile?.full_name,
+          email: parsed.candidate_profile?.email || bestMatch.candidate_profile?.email,
+          phone: parsed.candidate_profile?.phone || bestMatch.candidate_profile?.phone,
+          location: parsed.candidate_profile?.location || bestMatch.candidate_profile?.location,
+          linkedin: parsed.candidate_profile?.linkedin || bestMatch.candidate_profile?.linkedin,
+          github: parsed.candidate_profile?.github || bestMatch.candidate_profile?.github,
+          portfolio: parsed.candidate_profile?.portfolio || bestMatch.candidate_profile?.portfolio,
+        };
+        
+        bestMatch.professional_summary = parsed.professional_summary;
+        bestMatch.education = parsed.education;
+        bestMatch.technical_skills = parsed.technical_skills;
+        bestMatch.soft_skills = parsed.soft_skills;
+        bestMatch.work_experience = parsed.work_experience;
+        bestMatch.internships = parsed.internships;
+        bestMatch.projects = parsed.projects;
+        bestMatch.certifications = parsed.certifications;
+        bestMatch.achievements = parsed.achievements;
+        bestMatch.resume_analysis = parsed.resume_analysis;
+        bestMatch.status = parsed.status || "Pending";
+        
+        await bestMatch.save();
+        await ResumeData.deleteOne({ _id: parsed._id });
+        
+        const index = placeholders.indexOf(bestMatch);
+        if (index > -1) {
+          placeholders.splice(index, 1);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error merging candidates:", err);
+  }
+}
+
 // GET /api/candidates
 app.get("/api/candidates", requireAuth, async (req, res) => {
   try {
-    const candidates = await ResumeData.find({ userId: req.user.userId }).sort({ created_at: -1 });
+    await mergeCandidates();
+    const candidates = await ResumeData.find({}).sort({ created_at: -1 });
     res.json(candidates);
   } catch (error) {
     console.error("Candidates fetch error:", error);
@@ -370,7 +452,7 @@ app.put("/api/candidates/:id/status", requireAuth, async (req, res) => {
     const { status } = req.body; // Shortlisted, Rejected, Pending
 
     const candidate = await ResumeData.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.userId },
+      { _id: req.params.id },
       {
         $set: {
           status,
@@ -396,7 +478,7 @@ app.put("/api/candidates/:id/status", requireAuth, async (req, res) => {
 // DELETE /api/candidates/:id
 app.delete("/api/candidates/:id", requireAuth, async (req, res) => {
   try {
-    const candidate = await ResumeData.findOne({ _id: req.params.id, userId: req.user.userId });
+    const candidate = await ResumeData.findOne({ _id: req.params.id });
     if (!candidate) return res.status(404).json({ message: "Candidate not found." });
 
 
@@ -406,7 +488,7 @@ app.delete("/api/candidates/:id", requireAuth, async (req, res) => {
       if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
     }
 
-    await ResumeData.deleteOne({ _id: req.params.id, userId: req.user.userId });
+    await ResumeData.deleteOne({ _id: req.params.id });
     res.json({ message: "Candidate deleted successfully." });
 
   } catch (error) {
@@ -520,7 +602,7 @@ app.post("/api/candidates/upload-file", requireAuth, upload.single("resume"), as
     if (candidateId) {
       // Link file to existing candidate record (ownership enforced)
       await ResumeData.findOneAndUpdate(
-        { _id: candidateId, userId: req.user.userId },
+        { _id: candidateId },
         {
           filePath: req.file.filename,
           originalName: req.file.originalname,
@@ -543,7 +625,7 @@ app.post("/api/candidates/upload-file", requireAuth, upload.single("resume"), as
 // GET /api/candidates/:id/download — download original resume PDF
 app.get("/api/candidates/:id/download", requireAuth, async (req, res) => {
   try {
-    const candidate = await ResumeData.findOne({ _id: req.params.id, userId: req.user.userId });
+    const candidate = await ResumeData.findOne({ _id: req.params.id });
     if (!candidate) return res.status(404).json({ message: "Candidate not found." });
 
 

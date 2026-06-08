@@ -221,7 +221,7 @@ export default function Shortlisted() {
 
                 return (
                   <tr key={i} className="sl-row">
-                    <td>
+                    <td data-label="Candidate">
                       <div className="sl-candidate-cell">
                         <div className="sl-avatar" style={{ background: colors[ci], color: tcolors[ci] }}>
                           {initials}
@@ -232,19 +232,18 @@ export default function Shortlisted() {
                         </div>
                       </div>
                     </td>
-                    <td className="sl-job">{jobRoles}</td>
-                    <td>
+                    <td data-label="Job Title" className="sl-job">{jobRoles}</td>
+                    <td data-label="AI Score">
                       <span className="sl-score" style={{ color: scoreColor(atsScore) }}>
                         {atsScore}/100
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Match">
                       <span className="sl-score" style={{ color: scoreColor(atsScore) }}>
                         {atsScore}%
                       </span>
                     </td>
-                    <td>
-                      {/* Status badge */}
+                    <td data-label="Status">
                       {(() => {
                         const s = (c.status || "Pending").toLowerCase();
                         const cfg = s === "shortlisted"
@@ -259,7 +258,7 @@ export default function Shortlisted() {
                         );
                       })()}
                     </td>
-                    <td className="sl-date">{date}</td>
+                    <td data-label="Date" className="sl-date">{date}</td>
                   </tr>
                 );
               })}

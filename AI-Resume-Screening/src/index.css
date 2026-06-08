@@ -11,6 +11,19 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  /* Dashboard-specific tokens */
+  --dash-bg:        #f7f5ff;
+  --dash-topbar:    rgba(255, 255, 255, 0.88);
+  --dash-sidebar:   rgba(255, 255, 255, 0.95);
+  --dash-card:      rgba(255, 255, 255, 0.98);
+  --dash-panel-border: rgba(145, 92, 255, 0.12);
+  --dash-input-bg:  #faf8ff;
+  --dash-muted:     #f1f5f9;
+  --dash-subtle:    rgba(127, 86, 218, 0.07);
+  --dash-text:      #475569;
+  --dash-text-h:    #1e1b4b;
+  --dash-text-light:#94a3b8;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -28,6 +41,36 @@
   @media (max-width: 1024px) {
     font-size: 16px;
   }
+}
+
+/* ── Manual dark mode via data-theme attribute ── */
+[data-theme="dark"] {
+  --text: #9ca3af;
+  --text-h: #f3f4f6;
+  --bg: #0f0e17;
+  --border: #2a2738;
+  --code-bg: #1a1825;
+  --accent: #c084fc;
+  --accent-bg: rgba(192, 132, 252, 0.15);
+  --accent-border: rgba(192, 132, 252, 0.5);
+  --social-bg: rgba(47, 48, 58, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
+
+  /* Dashboard dark tokens */
+  --dash-bg:        #0f0e17;
+  --dash-topbar:    rgba(18, 17, 28, 0.95);
+  --dash-sidebar:   rgba(20, 18, 32, 0.98);
+  --dash-card:      rgba(22, 20, 35, 0.98);
+  --dash-panel-border: rgba(139, 92, 246, 0.18);
+  --dash-input-bg:  #1a1825;
+  --dash-muted:     #1e1c2e;
+  --dash-subtle:    rgba(139, 92, 246, 0.1);
+  --dash-text:      #a1a1b5;
+  --dash-text-h:    #e2e0f0;
+  --dash-text-light:#64647a;
+
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {

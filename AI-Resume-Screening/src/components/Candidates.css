@@ -11,10 +11,10 @@
   --text-mid: #475569;
   --text-light: #94a3b8;
   --bg-page: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-muted: #f1f5f9;
-  --border: #e2e8f0;
-  --border-light: #f1f5f9;
+  --bg-card: var(--dash-card, #ffffff);
+  --bg-muted: var(--dash-muted, #f1f5f9);
+  --border: var(--dash-panel-border, #e2e8f0);
+  --border-light: var(--dash-panel-border, #f1f5f9);
   --green: #10b981;
   --green-bg: #d1fae5;
   --red: #ef4444;
@@ -1235,4 +1235,106 @@
     min-width: 90px;
     font-size: 0.78rem;
   }
+}
+
+/* ============================================================
+   7. DARK MODE OVERRIDES
+   ============================================================ */
+
+[data-theme="dark"] .candidates-container,
+[data-theme="dark"] .candidate-details-container {
+  color: var(--dash-text, #a1a1b5);
+}
+
+[data-theme="dark"] .candidates-title,
+[data-theme="dark"] .profile-name,
+[data-theme="dark"] .card-sec-title,
+[data-theme="dark"] .timeline-title,
+[data-theme="dark"] .edu-degree,
+[data-theme="dark"] .analysis-card-title,
+[data-theme="dark"] .score-num,
+[data-theme="dark"] .badge-value,
+[data-theme="dark"] .candidates-table th,
+[data-theme="dark"] .candidates-table td,
+[data-theme="dark"] .candidate-name {
+  color: var(--dash-text-h, #e2e0f0);
+}
+
+[data-theme="dark"] .candidates-subtitle,
+[data-theme="dark"] .candidates-table td,
+[data-theme="dark"] .timeline-desc,
+[data-theme="dark"] .edu-inst,
+[data-theme="dark"] .analysis-reasoning p,
+[data-theme="dark"] .resume-paper p,
+[data-theme="dark"] .resume-skill-cat,
+[data-theme="dark"] .resume-item p {
+  color: var(--dash-text, #a1a1b5);
+}
+
+[data-theme="dark"] .table-responsive,
+[data-theme="dark"] .profile-header-card,
+[data-theme="dark"] .details-tab-bar,
+[data-theme="dark"] .tab-content-container,
+[data-theme="dark"] .score-badge-card,
+[data-theme="dark"] .resume-paper,
+[data-theme="dark"] .analysis-reasoning {
+  background: var(--dash-card, rgba(22, 20, 35, 0.98));
+  border-color: var(--dash-panel-border, rgba(139, 92, 246, 0.18));
+}
+
+[data-theme="dark"] .candidates-table th {
+  background: var(--dash-muted, #1e1c2e);
+  border-color: var(--dash-panel-border, rgba(139, 92, 246, 0.18));
+}
+
+[data-theme="dark"] .candidates-table tbody tr:hover {
+  background: var(--dash-muted, #1e1c2e);
+}
+
+[data-theme="dark"] .candidates-table td {
+  border-color: var(--dash-panel-border, rgba(139, 92, 246, 0.1));
+}
+
+[data-theme="dark"] .search-box input,
+[data-theme="dark"] .filter-select,
+[data-theme="dark"] .btn-filter {
+  background: var(--dash-input-bg, #1a1825);
+  border-color: var(--dash-panel-border, rgba(139, 92, 246, 0.2));
+  color: var(--dash-text-h, #e2e0f0);
+}
+
+[data-theme="dark"] .skill-pill,
+[data-theme="dark"] .detail-skill-pill {
+  background: var(--dash-muted, #1e1c2e);
+  border-color: var(--dash-panel-border, rgba(139, 92, 246, 0.2));
+  color: var(--dash-text, #a1a1b5);
+}
+
+[data-theme="dark"] .timeline::before {
+  background: var(--dash-panel-border, rgba(139, 92, 246, 0.2));
+}
+
+[data-theme="dark"] .back-btn {
+  color: var(--dash-text, #a1a1b5);
+}
+
+[data-theme="dark"] .metric-bar-container {
+  background: var(--dash-muted, #1e1c2e);
+}
+
+[data-theme="dark"] .details-tab-item {
+  color: var(--dash-text-light, #64647a);
+}
+
+[data-theme="dark"] .details-tab-item.active {
+  color: #a78bfa;
+  border-bottom-color: #a78bfa;
+}
+
+[data-theme="dark"] .badge-label,
+[data-theme="dark"] .ring-label,
+[data-theme="dark"] .timeline-date,
+[data-theme="dark"] .candidate-email,
+[data-theme="dark"] .edu-duration {
+  color: var(--dash-text-light, #64647a);
 }
