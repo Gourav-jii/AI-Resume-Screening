@@ -517,7 +517,7 @@ function App() {
             <main className="dashboard-content">
               {activeSection === "dashboard" && (
                 <section className="panel-card" ref={panelRef}>
-                  <Dashboard user={user} onNavigate={handleSidebarSelect} />
+                  <Dashboard key={user?.userId || user?.email || "dashboard"} user={user} onNavigate={handleSidebarSelect} />
                 </section>
               )}
 
@@ -853,19 +853,19 @@ function App() {
 
               {activeSection === "candidates" && (
                 <section className="panel-card" ref={panelRef}>
-                  <Candidates />
+                  <Candidates key={user?.userId || user?.email || "candidates"} user={user} />
                 </section>
               )}
 
               {activeSection === "shortlisted" && (
                 <section className="panel-card" ref={panelRef}>
-                  <Shortlisted />
+                  <Shortlisted key={user?.userId || user?.email || "shortlisted"} user={user} />
                 </section>
               )}
 
               {activeSection === "aianalysis" && (
                 <section className="panel-card" ref={panelRef}>
-                  <AIAnalysis />
+                  <AIAnalysis key={user?.userId || user?.email || "aianalysis"} user={user} />
                 </section>
               )}
             </main>

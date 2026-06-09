@@ -3,7 +3,7 @@ import "./Shortlisted.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
-export default function Shortlisted() {
+export default function Shortlisted({ user }) {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
@@ -21,8 +21,10 @@ export default function Shortlisted() {
 
       if (!res.ok) throw new Error("Failed to fetch candidates");
       const data = await res.json();
-      // Show all candidates — status filter handled in UI
-      setCandidates(data);
+      const scopedData = user?.userId
+        ? data.filter((candidate) => String(candidate.userId) === String(user.userId))
+        : data;
+      setCandidates(scopedData);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -31,7 +33,12 @@ export default function Shortlisted() {
     }
   };
 
-  useEffect(() => { fetchShortlisted(); }, []);
+  useEffect(() => { fetchShortlisted(); }, [user?.userId]);
+
+  const ownedCandidates = candidates.filter((candidate) => {
+    if (!user?.userId) return true;
+    return String(candidate.userId) === String(user.userId);
+  });
 
   // Score color
   const scoreColor = (score) => {
@@ -43,11 +50,11 @@ export default function Shortlisted() {
 
   // Unique job titles for filter
   const jobTitles = ["All", ...new Set(
-    candidates.flatMap(c => c.resume_analysis?.best_matching_roles || []).filter(Boolean)
+    ownedCandidates.flatMap(c => c.resume_analysis?.best_matching_roles || []).filter(Boolean)
   )];
 
   // Apply search + job + status filter
-  const filtered = candidates.filter(c => {
+  const filtered = ownedCandidates.filter(c => {
     const name   = (c.candidate_profile?.full_name || "").toLowerCase();
     const email  = (c.candidate_profile?.email     || "").toLowerCase();
     const q      = search.toLowerCase();
@@ -181,7 +188,7 @@ export default function Shortlisted() {
         <div className="sl-state">
           <p className="sl-empty-icon">📋</p>
           <p className="sl-empty-text">
-            {candidates.length === 0
+            {ownedCandidates.length === 0
               ? "No shortlisted candidates yet. Shortlist candidates from the Candidates section."
               : "No candidates match your search."}
           </p>

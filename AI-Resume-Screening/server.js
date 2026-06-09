@@ -27,7 +27,13 @@ const PORT = process.env.PORT || 4000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static(UPLOADS_DIR));
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Vary", "Authorization");
+  next();
+});
 
 // Multer — disk storage so original PDFs are kept for download
 const storage = multer.diskStorage({
@@ -104,6 +110,8 @@ const resumeAnalysisSchema = new mongoose.Schema({
 
 const resumesDataSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  ownerEmail: { type: String, default: "", index: true },
+  ownerName: { type: String, default: "" },
   candidate_profile: candidateProfileSchema,
   professional_summary: { type: String, default: "" },
 
@@ -151,6 +159,41 @@ const requireAuth = (req, res, next) => {
     res.status(401).json({ message: "Unauthorized." });
   }
 };
+
+const getOwnedCandidateQuery = (req, candidateId) => {
+  const ownershipClauses = [{ userId: req.user.userId }];
+  if (req.user.email) ownershipClauses.push({ ownerEmail: req.user.email.toLowerCase() });
+
+  return candidateId
+    ? { _id: candidateId, $or: ownershipClauses }
+    : { $or: ownershipClauses };
+};
+
+app.get("/uploads/:filename", requireAuth, async (req, res) => {
+  try {
+    const candidate = await ResumeData.findOne({
+      filePath: req.params.filename,
+      $or: [
+        { userId: req.user.userId },
+        { ownerEmail: req.user.email?.toLowerCase() || "" },
+      ],
+    });
+
+    if (!candidate) {
+      return res.status(404).json({ message: "File not found." });
+    }
+
+    const fullPath = path.join(UPLOADS_DIR, req.params.filename);
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ message: "File not found on server." });
+    }
+
+    res.sendFile(fullPath);
+  } catch (error) {
+    console.error("Upload access error:", error);
+    res.status(500).json({ message: "Server error. Please try again." });
+  }
+});
 
 // REST API Endpoints
 
@@ -353,9 +396,11 @@ app.delete("/api/job-description/:id", async (req, res) => {
 });
 
 // Helper to merge N8N parsed resumes into placeholders
-async function mergeCandidates() {
+async function mergeCandidates(user) {
   try {
-    const allDocs = await ResumeData.find({});
+    if (!user?.userId) return;
+
+    const allDocs = await ResumeData.find(getOwnedCandidateQuery({ user }, null)).sort({ created_at: -1 });
     
     const placeholders = [];
     const parsedResumes = [];
@@ -436,8 +481,8 @@ async function mergeCandidates() {
 // GET /api/candidates
 app.get("/api/candidates", requireAuth, async (req, res) => {
   try {
-    await mergeCandidates();
-    const candidates = await ResumeData.find({}).sort({ created_at: -1 });
+    await mergeCandidates(req.user);
+    const candidates = await ResumeData.find(getOwnedCandidateQuery(req, null)).sort({ created_at: -1 });
     res.json(candidates);
   } catch (error) {
     console.error("Candidates fetch error:", error);
@@ -452,7 +497,7 @@ app.put("/api/candidates/:id/status", requireAuth, async (req, res) => {
     const { status } = req.body; // Shortlisted, Rejected, Pending
 
     const candidate = await ResumeData.findOneAndUpdate(
-      { _id: req.params.id },
+      getOwnedCandidateQuery(req, req.params.id),
       {
         $set: {
           status,
@@ -478,7 +523,7 @@ app.put("/api/candidates/:id/status", requireAuth, async (req, res) => {
 // DELETE /api/candidates/:id
 app.delete("/api/candidates/:id", requireAuth, async (req, res) => {
   try {
-    const candidate = await ResumeData.findOne({ _id: req.params.id });
+    const candidate = await ResumeData.findOne(getOwnedCandidateQuery(req, req.params.id));
     if (!candidate) return res.status(404).json({ message: "Candidate not found." });
 
 
@@ -531,6 +576,9 @@ app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (r
         if (req.body.location)       fd.append("location",       req.body.location);
         if (req.body.skills)         fd.append("skills",         req.body.skills);
         if (req.body.jobDescription) fd.append("jobDescription", req.body.jobDescription);
+        if (req.user?.userId)       fd.append("userId",         req.user.userId);
+        if (req.user?.email)        fd.append("userEmail",      req.user.email.toLowerCase());
+        if (req.user?.name)         fd.append("userName",       req.user.name);
 
         const webhookRes = await fetch(n8nUrl, {
           method:  "POST",
@@ -581,6 +629,8 @@ app.post("/api/candidates/save", requireAuth, async (req, res) => {
     const candidate = await new ResumeData({
       ...safeData,
       userId: req.user.userId,
+      ownerEmail: req.user.email?.toLowerCase() || "",
+      ownerName: req.user.name || "",
     }).save();
 
 
@@ -601,13 +651,19 @@ app.post("/api/candidates/upload-file", requireAuth, upload.single("resume"), as
 
     if (candidateId) {
       // Link file to existing candidate record (ownership enforced)
-      await ResumeData.findOneAndUpdate(
-        { _id: candidateId },
+      const candidate = await ResumeData.findOneAndUpdate(
+        getOwnedCandidateQuery(req, candidateId),
         {
           filePath: req.file.filename,
           originalName: req.file.originalname,
         }
       );
+
+      if (!candidate) {
+        const fullPath = path.join(UPLOADS_DIR, req.file.filename);
+        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+        return res.status(404).json({ message: "Candidate not found or unauthorized." });
+      }
     }
 
 
@@ -625,7 +681,7 @@ app.post("/api/candidates/upload-file", requireAuth, upload.single("resume"), as
 // GET /api/candidates/:id/download — download original resume PDF
 app.get("/api/candidates/:id/download", requireAuth, async (req, res) => {
   try {
-    const candidate = await ResumeData.findOne({ _id: req.params.id });
+    const candidate = await ResumeData.findOne(getOwnedCandidateQuery(req, req.params.id));
     if (!candidate) return res.status(404).json({ message: "Candidate not found." });
 
 

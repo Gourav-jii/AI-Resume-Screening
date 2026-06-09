@@ -42,7 +42,11 @@ export default function Dashboard({ user, onNavigate }) {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) throw new Error("Failed");
-        setCandidates(await res.json());
+        const data = await res.json();
+        const scopedData = user?.userId
+          ? data.filter((candidate) => String(candidate.userId) === String(user.userId))
+          : data;
+        setCandidates(scopedData);
       } catch {
         setCandidates([]);
       } finally {
@@ -50,17 +54,22 @@ export default function Dashboard({ user, onNavigate }) {
       }
     };
     fetch_();
-  }, []);
+  }, [user?.userId]);
+
+  const ownedCandidates = candidates.filter((candidate) => {
+    if (!user?.userId) return true;
+    return String(candidate.userId) === String(user.userId);
+  });
 
   // ── Stats ──
-  const total       = candidates.length;
-  const shortlisted = candidates.filter(c => (c.status || "").toLowerCase() === "shortlisted").length;
-  const rejected    = candidates.filter(c => (c.status || "").toLowerCase() === "rejected").length;
-  const pending     = candidates.filter(c => {
+  const total       = ownedCandidates.length;
+  const shortlisted = ownedCandidates.filter(c => (c.status || "").toLowerCase() === "shortlisted").length;
+  const rejected    = ownedCandidates.filter(c => (c.status || "").toLowerCase() === "rejected").length;
+  const pending     = ownedCandidates.filter(c => {
     const s = (c.status || "pending").toLowerCase();
     return s !== "shortlisted" && s !== "rejected";
   }).length;
-  const scores      = candidates.map(c => c.resume_analysis?.ats_score || 0).filter(Boolean);
+  const scores      = ownedCandidates.map(c => c.resume_analysis?.ats_score || 0).filter(Boolean);
   const avgScore    = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
   const stats = [
@@ -73,7 +82,7 @@ export default function Dashboard({ user, onNavigate }) {
 
   // ── Top Skills ──
   const skillMap = {};
-  candidates.forEach(c => {
+  ownedCandidates.forEach(c => {
     const tech = c.technical_skills || {};
     const all  = [
       ...(tech.programming_languages || []),
@@ -91,7 +100,7 @@ export default function Dashboard({ user, onNavigate }) {
   const skillColors = ["#6366f1","#10b981","#3b82f6","#f59e0b","#8b5cf6","#ec4899"];
 
   // ── Activity Feed ──
-  const activities = candidates
+  const activities = ownedCandidates
     .slice()
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
     .slice(0, 5)
@@ -103,7 +112,7 @@ export default function Dashboard({ user, onNavigate }) {
     });
 
   // ── Recent Candidates (latest 5) ──
-  const recent = candidates
+  const recent = ownedCandidates
     .slice()
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
     .slice(0, 5);

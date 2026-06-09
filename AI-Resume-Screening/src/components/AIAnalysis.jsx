@@ -3,7 +3,7 @@ import "./AIAnalysis.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
-export default function AIAnalysis() {
+export default function AIAnalysis({ user }) {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState("");
@@ -12,32 +12,45 @@ export default function AIAnalysis() {
   useEffect(() => {
     const fetchCandidates = async () => {
       try {
+        setSelectedId("");
+        setCandidate(null);
         const token = localStorage.getItem("auth_token");
         const res = await fetch(`${API_URL}/api/candidates`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
-        setCandidates(data);
+        const scopedData = user?.userId
+          ? data.filter((candidate) => String(candidate.userId) === String(user.userId))
+          : data;
+        setCandidates(scopedData);
         // Auto-select first candidate that has analysis
-        const first = data.find((c) => c.resume_analysis?.ats_score);
+        const first = scopedData.find((c) => c.resume_analysis?.ats_score);
         if (first) {
           setSelectedId(first._id);
           setCandidate(first);
         }
       } catch (err) {
         console.error(err);
+        setCandidates([]);
+        setSelectedId("");
+        setCandidate(null);
       } finally {
         setLoading(false);
       }
     };
     fetchCandidates();
-  }, []);
+  }, [user?.userId]);
+
+  const ownedCandidates = candidates.filter((candidate) => {
+    if (!user?.userId) return true;
+    return String(candidate.userId) === String(user.userId);
+  });
 
   const handleSelect = (e) => {
     const id = e.target.value;
     setSelectedId(id);
-    const found = candidates.find((c) => c._id === id);
+    const found = ownedCandidates.find((c) => c._id === id);
     setCandidate(found || null);
   };
 
@@ -116,9 +129,9 @@ export default function AIAnalysis() {
               onChange={handleSelect}
             >
               <option value="">
-                {candidates.length === 0 ? "No candidates available" : "Choose a candidate"}
+                {ownedCandidates.length === 0 ? "No candidates available" : "Choose a candidate"}
               </option>
-              {candidates.map((c) => (
+              {ownedCandidates.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.candidate_profile?.full_name || "Unnamed"}{" "}
                   {c.resume_analysis?.ats_score ? `— ${c.resume_analysis.ats_score}/100` : ""}

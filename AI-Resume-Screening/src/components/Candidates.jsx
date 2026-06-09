@@ -3,7 +3,7 @@ import './Candidates.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
-export default function Candidates() {
+export default function Candidates({ user }) {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,7 +35,10 @@ export default function Candidates() {
 
       if (!res.ok) throw new Error("Failed to fetch candidates");
       const data = await res.json();
-      setCandidates(data);
+      const scopedData = user?.userId
+        ? data.filter((candidate) => String(candidate.userId) === String(user.userId))
+        : data;
+      setCandidates(scopedData);
       setError(null);
     } catch (err) {
       console.error(err);
@@ -47,7 +50,12 @@ export default function Candidates() {
 
   useEffect(() => {
     fetchCandidates();
-  }, []);
+  }, [user?.userId]);
+
+  const ownedCandidates = candidates.filter((candidate) => {
+    if (!user?.userId) return true;
+    return String(candidate.userId) === String(user.userId);
+  });
 
   const handleUpdateStatus = async (candidateId, newStatus) => {
     try {
@@ -212,12 +220,12 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
   };
 
   // Setup unique dropdown filters dynamically from candidate data
-  const uniqueJobs = ["All Jobs", ...new Set(candidates.flatMap(c => c.resume_analysis?.best_matching_roles || []).filter(Boolean))].sort();
-  const uniqueSkills = ["All Skills", ...new Set(candidates.flatMap(c => getCandidateSkillsList(c)).filter(Boolean))].sort();
-  const uniqueExperience = ["All Experience", ...new Set(candidates.map(c => c.resume_analysis?.experience_level).filter(Boolean))].sort();
+  const uniqueJobs = ["All Jobs", ...new Set(ownedCandidates.flatMap(c => c.resume_analysis?.best_matching_roles || []).filter(Boolean))].sort();
+  const uniqueSkills = ["All Skills", ...new Set(ownedCandidates.flatMap(c => getCandidateSkillsList(c)).filter(Boolean))].sort();
+  const uniqueExperience = ["All Experience", ...new Set(ownedCandidates.map(c => c.resume_analysis?.experience_level).filter(Boolean))].sort();
 
   // Filter candidates based on selected search & filters
-  const filteredCandidates = candidates.filter(candidate => {
+  const filteredCandidates = ownedCandidates.filter(candidate => {
     const name = candidate.candidate_profile?.full_name || "Unnamed Candidate";
     const email = candidate.candidate_profile?.email || "";
     const skillsList = getCandidateSkillsList(candidate);
