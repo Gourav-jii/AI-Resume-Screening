@@ -68,11 +68,26 @@ export default function Dashboard({ user, onNavigate }) {
   const avgScore    = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
   const stats = [
-    { label: "Total Candidates", value: total,       icon: "👥", color: "#6366f1", bg: "#e0e7ff", trend: "+12%", up: true  },
-    { label: "Shortlisted",      value: shortlisted,  icon: "✅", color: "#10b981", bg: "#d1fae5", trend: "+8%",  up: true  },
-    { label: "Pending Review",   value: pending,      icon: "⏳", color: "#f59e0b", bg: "#fef3c7", trend: "-5%",  up: false },
-    { label: "Rejected",         value: rejected,     icon: "❌", color: "#ef4444", bg: "#fee2e2", trend: "-3%",  up: false },
-    { label: "Avg. Match Score", value: `${avgScore}%`, icon: "🎯", color: "#8b5cf6", bg: "#ede9fe", trend: "+15%", up: true },
+    {
+      label: "Total Candidates", value: total, color: "#6366f1", bg: "#e0e7ff",
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    },
+    {
+      label: "Shortlisted", value: shortlisted, color: "#10b981", bg: "#d1fae5",
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    },
+    {
+      label: "Pending Review", value: pending, color: "#f59e0b", bg: "#fef3c7",
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    },
+    {
+      label: "Rejected", value: rejected, color: "#ef4444", bg: "#fee2e2",
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    },
+    {
+      label: "Avg. Match Score", value: `${avgScore}%`, color: "#8b5cf6", bg: "#ede9fe",
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    },
   ];
 
   // ── Top Skills ──
@@ -101,9 +116,21 @@ export default function Dashboard({ user, onNavigate }) {
     .slice(0, 5)
     .map(c => {
       const s = (c.status || "pending").toLowerCase();
-      if (s === "shortlisted") return { text: `${c.candidate_profile?.full_name || "Candidate"} shortlisted`, icon: "✅", color: "#10b981", time: c.created_at };
-      if (s === "rejected")    return { text: `${c.candidate_profile?.full_name || "Candidate"} rejected`,    icon: "❌", color: "#ef4444", time: c.created_at };
-      return { text: `${c.candidate_profile?.full_name || "Candidate"} resume uploaded`, icon: "📄", color: "#6366f1", time: c.created_at };
+      if (s === "shortlisted") return {
+        text: `${c.candidate_profile?.full_name || "Candidate"} shortlisted`,
+        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+        color: "#10b981", time: c.created_at
+      };
+      if (s === "rejected") return {
+        text: `${c.candidate_profile?.full_name || "Candidate"} rejected`,
+        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+        color: "#ef4444", time: c.created_at
+      };
+      return {
+        text: `${c.candidate_profile?.full_name || "Candidate"} resume uploaded`,
+        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+        color: "#6366f1", time: c.created_at
+      };
     });
 
   // ── Recent Candidates (latest 5) ──
@@ -289,8 +316,8 @@ export default function Dashboard({ user, onNavigate }) {
                     ...(tech.frontend || []),
                     ...(tech.backend  || []),
                   ].slice(0, 3);
-                  const expYrs  = c.work_experience?.length
-                    ? `${c.work_experience.length * 1.5} Years` : "—";
+                  const expYrs = c.resume_analysis?.experience_level ||
+                    (c.work_experience?.length > 0 ? null : "Fresher") || "Fresher";
                   const score   = c.resume_analysis?.ats_score || 0;
                   const status  = c.status || "Pending";
                   const sc      = status.toLowerCase() === "shortlisted"

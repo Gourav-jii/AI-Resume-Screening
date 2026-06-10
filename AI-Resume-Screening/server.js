@@ -37,10 +37,17 @@ app.use("/api", (req, res, next) => {
 
 // Multer — disk storage so original PDFs are kept for download
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  destination: (_req, _file, cb) => {
+    // Ensure directory exists before saving
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+    cb(null, UPLOADS_DIR);
+  },
   filename:    (_req, file, cb) => {
     const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    cb(null, `${unique}-${file.originalname}`);
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+    cb(null, `${unique}-${safeName}`);
   },
 });
 const upload = multer({
@@ -683,11 +690,16 @@ app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (r
       }
     }
 
-    const uploadedFiles = req.files.map(file => ({
-      filePath:     file.filename,
-      originalName: file.originalname,
-      downloadUrl:  `/uploads/${file.filename}`,
-    }));
+    const uploadedFiles = req.files.map(file => {
+      const fullPath = path.join(UPLOADS_DIR, file.filename);
+      const exists = fs.existsSync(fullPath);
+      console.log(`[UPLOAD] File saved: ${file.filename} | exists: ${exists} | size: ${file.size} bytes`);
+      return {
+        filePath:     file.filename,
+        originalName: file.originalname,
+        downloadUrl:  `/uploads/${file.filename}`,
+      };
+    });
 
     // Return saved files info + N8N data to frontend
     res.json({

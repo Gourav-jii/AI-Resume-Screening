@@ -140,15 +140,34 @@ export default function Candidates({ user }) {
   const handleDownloadResume = async (candidate, e) => {
     if (e) e.stopPropagation();
 
-    // Try real file download first
+    // Try real file download with auth token
     if (candidate.filePath) {
-      const link = document.createElement("a");
-      link.href = `${API_URL}/api/candidates/${candidate._id}/download`;
-      link.download = candidate.originalName || candidate.filePath;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      return;
+      try {
+        const token = localStorage.getItem("auth_token");
+        const res = await fetch(`${API_URL}/api/candidates/${candidate._id}/download`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `HTTP ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = candidate.originalName || candidate.filePath || "resume.pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        return;
+      } catch (err) {
+        console.error("Download error:", err);
+        alert("Failed to download resume. Please try again.");
+        return;
+      }
     }
 
     // Fallback: generate text report from stored data
@@ -317,13 +336,22 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
               <h2 className="profile-name">{candidate.candidate_profile?.full_name || "Unnamed Candidate"}</h2>
               <div className="profile-meta-grid">
                 {candidate.candidate_profile?.email && (
-                  <span className="profile-meta-item">📧 {candidate.candidate_profile.email}</span>
+                  <span className="profile-meta-item">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    {candidate.candidate_profile.email}
+                  </span>
                 )}
                 {candidate.candidate_profile?.phone && (
-                  <span className="profile-meta-item">📞 {candidate.candidate_profile.phone}</span>
+                  <span className="profile-meta-item">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.61 5 2 2 0 0 1 3.6 2.87h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.5a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    {candidate.candidate_profile.phone}
+                  </span>
                 )}
                 {candidate.candidate_profile?.location && (
-                  <span className="profile-meta-item">📍 {candidate.candidate_profile.location}</span>
+                  <span className="profile-meta-item">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    {candidate.candidate_profile.location}
+                  </span>
                 )}
               </div>
             </div>
@@ -420,7 +448,9 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
                             <h4 className="timeline-title">
                               {proj.name || proj.project_name || "Project"} 
                               {(proj.link || proj.live_link) && (
-                                <a href={proj.link || proj.live_link} target="_blank" rel="noreferrer" className="proj-link"> 🔗</a>
+                                <a href={proj.link || proj.live_link} target="_blank" rel="noreferrer" className="proj-link">
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                </a>
                               )}
                             </h4>
                             <p className="timeline-desc">{proj.description}</p>

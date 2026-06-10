@@ -20,9 +20,13 @@ export default function AIAnalysis({ user }) {
         });
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
-        setCandidates(data);
-        // Auto-select first candidate that has analysis
-        const first = data.find((c) => c.resume_analysis?.ats_score);
+        // Sort by ATS score descending — highest score first
+        const sorted = [...data].sort((a, b) =>
+          (b.resume_analysis?.ats_score || 0) - (a.resume_analysis?.ats_score || 0)
+        );
+        setCandidates(sorted);
+        // Auto-select highest scoring candidate
+        const first = sorted.find((c) => c.resume_analysis?.ats_score);
         if (first) {
           setSelectedId(first._id);
           setCandidate(first);
@@ -176,7 +180,9 @@ export default function AIAnalysis({ user }) {
 
       {!candidate ? (
         <div className="ai-empty">
-          <div className="ai-empty-icon">🤖</div>
+          <div className="ai-empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h.01M15 9h.01M8 13h8"/><circle cx="12" cy="17" r="1"/></svg>
+          </div>
           <p className="ai-empty-text">Select a candidate to view AI analysis.</p>
         </div>
       ) : (

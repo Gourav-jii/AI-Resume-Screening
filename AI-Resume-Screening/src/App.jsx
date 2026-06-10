@@ -744,7 +744,7 @@ function App() {
                                     className="jd-action-btn jd-edit-btn"
                                     onClick={() => openEditModal(job)}
                                   >
-                                    ✏ Edit
+                                     Edit
                                   </button>
                                   <button
                                     type="button"
@@ -761,10 +761,10 @@ function App() {
                             {(job.location || job.skills) && (
                               <div className="jd-card-badges">
                                 {job.location && (
-                                  <span className="jd-badge jd-badge-loc">📍 {job.location}</span>
+                                  <span className="jd-badge jd-badge-loc"> {job.location}</span>
                                 )}
                                 {job.skills && (
-                                  <span className="jd-badge jd-badge-skill">🛠 {job.skills}</span>
+                                  <span className="jd-badge jd-badge-skill"> {job.skills}</span>
                                 )}
                               </div>
                             )}
@@ -782,7 +782,7 @@ function App() {
                                   className="jd-action-btn jd-edit-btn"
                                   onClick={() => openEditModal(job)}
                                 >
-                                  ✏ Edit
+                                  Edit
                                 </button>
                                 <button
                                   type="button"
