@@ -35,10 +35,7 @@ export default function Candidates({ user }) {
 
       if (!res.ok) throw new Error("Failed to fetch candidates");
       const data = await res.json();
-      const scopedData = user?.userId
-        ? data.filter((candidate) => String(candidate.userId) === String(user.userId))
-        : data;
-      setCandidates(scopedData);
+      setCandidates(data);
       setError(null);
     } catch (err) {
       console.error(err);
@@ -50,12 +47,10 @@ export default function Candidates({ user }) {
 
   useEffect(() => {
     fetchCandidates();
-  }, [user?.userId]);
+  }, []);
 
-  const ownedCandidates = candidates.filter((candidate) => {
-    if (!user?.userId) return true;
-    return String(candidate.userId) === String(user.userId);
-  });
+  // Use all candidates directly — server handles user scoping
+  const ownedCandidates = candidates;
 
   const handleUpdateStatus = async (candidateId, newStatus) => {
     try {

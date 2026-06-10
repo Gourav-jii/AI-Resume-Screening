@@ -51,6 +51,7 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [jdViewMode, setJdViewMode] = useState("list"); // "list" | "grid"
   const toastTimer = useRef(null);
   const panelRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -146,7 +147,16 @@ function App() {
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body:    JSON.stringify({
-              candidate_profile: { full_name: fileInfo.originalName.replace(/\.(pdf|doc|docx)$/i, "").replace(/[-_]+/g, " ").trim() },
+              candidate_profile: {
+                full_name: fileInfo.originalName
+                  .replace(/\.(pdf|doc|docx)$/i, "")
+                  .replace(/[-_]+/g, " ")
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .split(" ")
+                  .slice(0, 4)           // max 4 words from filename
+                  .join(" ") || "Candidate"
+              },
               filePath:     fileInfo.filePath,
               originalName: fileInfo.originalName,
               source:       "AI Resume Screening",
@@ -517,7 +527,7 @@ function App() {
             <main className="dashboard-content">
               {activeSection === "dashboard" && (
                 <section className="panel-card" ref={panelRef}>
-                  <Dashboard key={user?.userId || user?.email || "dashboard"} user={user} onNavigate={handleSidebarSelect} />
+                  <Dashboard key={`dashboard-${user?.userId || user?.email}`} user={user} onNavigate={handleSidebarSelect} />
                 </section>
               )}
 
@@ -661,13 +671,42 @@ function App() {
                         Manage your open positions. Click <strong>Add Job</strong> to create a new listing.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className="add-job-button"
-                      onClick={openAddModal}
-                    >
-                      + Add Job
-                    </button>
+                    <div className="jd-topbar-right">
+                      {/* View toggle */}
+                      {savedJobDescriptions.length > 0 && (
+                        <div className="jd-view-toggle">
+                          <button
+                            type="button"
+                            className={`jd-view-btn ${jdViewMode === "list" ? "active" : ""}`}
+                            onClick={() => setJdViewMode("list")}
+                            title="List view"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                              <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className={`jd-view-btn ${jdViewMode === "grid" ? "active" : ""}`}
+                            onClick={() => setJdViewMode("grid")}
+                            title="Grid view"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                              <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="add-job-button"
+                        onClick={openAddModal}
+                      >
+                        + Add Job
+                      </button>
+                    </div>
                   </div>
 
                   {/* ── Job list ── */}
@@ -679,11 +718,11 @@ function App() {
                         <span className="jd-list-count">{savedJobDescriptions.length} position{savedJobDescriptions.length !== 1 ? "s" : ""}</span>
                       </div>
 
-                      <ul className="jd-list">
+                      <ul className={`jd-list ${jdViewMode === "grid" ? "jd-list-grid" : ""}`}>
                         {savedJobDescriptions.map((job, index) => (
-                          <li key={index} className="jd-card">
+                          <li key={index} className={`jd-card ${jdViewMode === "grid" ? "jd-card-grid" : ""}`}>
 
-                            {/* Row 1: avatar+title+dept  |  edit+delete */}
+                            {/* Row 1: avatar + title + dept */}
                             <div className="jd-card-top">
                               <div className="jd-card-left">
                                 <div className="jd-card-avatar">
@@ -697,13 +736,53 @@ function App() {
                                 </div>
                               </div>
 
+                              {/* Actions: right side in list, bottom in grid */}
+                              {jdViewMode === "list" && (
+                                <div className="jd-card-actions">
+                                  <button
+                                    type="button"
+                                    className="jd-action-btn jd-edit-btn"
+                                    onClick={() => openEditModal(job)}
+                                  >
+                                    ✏ Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="jd-action-btn jd-delete-btn"
+                                    onClick={() => setDeleteConfirmId(job._id)}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Row 2: location + skills badges */}
+                            {(job.location || job.skills) && (
+                              <div className="jd-card-badges">
+                                {job.location && (
+                                  <span className="jd-badge jd-badge-loc">📍 {job.location}</span>
+                                )}
+                                {job.skills && (
+                                  <span className="jd-badge jd-badge-skill">🛠 {job.skills}</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Row 3: description */}
+                            {job.description && (
+                              <p className="jd-card-desc">{job.description}</p>
+                            )}
+
+                            {/* Grid mode actions — at bottom */}
+                            {jdViewMode === "grid" && (
                               <div className="jd-card-actions">
                                 <button
                                   type="button"
                                   className="jd-action-btn jd-edit-btn"
                                   onClick={() => openEditModal(job)}
                                 >
-                                   Edit
+                                  ✏ Edit
                                 </button>
                                 <button
                                   type="button"
@@ -713,23 +792,6 @@ function App() {
                                   Delete
                                 </button>
                               </div>
-                            </div>
-
-                            {/* Row 2: location + skills badges */}
-                            {(job.location || job.skills) && (
-                              <div className="jd-card-badges">
-                                {job.location && (
-                                  <span className="jd-badge jd-badge-loc"> {job.location}</span>
-                                )}
-                                {job.skills && (
-                                  <span className="jd-badge jd-badge-skill"> {job.skills}</span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Row 3: description */}
-                            {job.description && (
-                              <p className="jd-card-desc">{job.description}</p>
                             )}
 
                             {/* Inline delete confirm */}
@@ -853,19 +915,19 @@ function App() {
 
               {activeSection === "candidates" && (
                 <section className="panel-card" ref={panelRef}>
-                  <Candidates key={user?.userId || user?.email || "candidates"} user={user} />
+                  <Candidates key={`candidates-${activeSection}-${Date.now()}`} user={user} />
                 </section>
               )}
 
               {activeSection === "shortlisted" && (
                 <section className="panel-card" ref={panelRef}>
-                  <Shortlisted key={user?.userId || user?.email || "shortlisted"} user={user} />
+                  <Shortlisted key={`shortlisted-${activeSection}-${Date.now()}`} user={user} />
                 </section>
               )}
 
               {activeSection === "aianalysis" && (
                 <section className="panel-card" ref={panelRef}>
-                  <AIAnalysis key={user?.userId || user?.email || "aianalysis"} user={user} />
+                  <AIAnalysis key={`aianalysis-${activeSection}-${Date.now()}`} user={user} />
                 </section>
               )}
             </main>

@@ -400,14 +400,44 @@ async function mergeCandidates(user) {
   try {
     if (!user?.userId) return;
 
-    const allDocs = await ResumeData.find(getOwnedCandidateQuery({ user }, null)).sort({ created_at: -1 });
-    
+    // User's own placeholder records (uploaded files, no AI data yet)
+    const userDocs = await ResumeData.find({
+      $or: [
+        { userId: user.userId },
+        { ownerEmail: user.email?.toLowerCase() },
+      ]
+    }).sort({ created_at: -1 });
+
+    // N8N parsed records that have no filePath (AI data only, no file association yet)
+    // These may not have userId set correctly depending on N8N config
+    const orphanParsed = await ResumeData.find({
+      filePath: { $in: ["", null] },
+      $or: [
+        { userId: user.userId },
+        { ownerEmail: user.email?.toLowerCase() },
+        // Also pick up records N8N saved without userId
+        { userId: { $exists: false } },
+      ]
+    }).sort({ created_at: -1 });
+
+    const allDocs = [...userDocs];
+    // Add orphan parsed records not already in userDocs
+    orphanParsed.forEach(op => {
+      if (!allDocs.find(d => String(d._id) === String(op._id))) {
+        allDocs.push(op);
+      }
+    });
+
     const placeholders = [];
     const parsedResumes = [];
     
     allDocs.forEach(doc => {
-      const hasFilePath = !!doc.filePath;
-      const isParsed = doc.resume_analysis && (doc.resume_analysis.ats_score > 0 || doc.resume_analysis.experience_level || doc.candidate_profile?.email);
+      const hasFilePath = !!(doc.filePath && doc.filePath.trim());
+      const isParsed = doc.resume_analysis && (
+        doc.resume_analysis.ats_score > 0 ||
+        doc.resume_analysis.experience_level ||
+        doc.candidate_profile?.email
+      );
       
       if (hasFilePath && !isParsed) {
         placeholders.push(doc);
@@ -462,7 +492,10 @@ async function mergeCandidates(user) {
         bestMatch.certifications = parsed.certifications;
         bestMatch.achievements = parsed.achievements;
         bestMatch.resume_analysis = parsed.resume_analysis;
-        bestMatch.status = parsed.status || "Pending";
+        bestMatch.status = parsed.status || bestMatch.status || "Pending";
+        // Ensure ownership is set on the merged record
+        if (!bestMatch.userId) bestMatch.userId = user.userId;
+        if (!bestMatch.ownerEmail) bestMatch.ownerEmail = user.email?.toLowerCase();
         
         await bestMatch.save();
         await ResumeData.deleteOne({ _id: parsed._id });
@@ -482,7 +515,13 @@ async function mergeCandidates(user) {
 app.get("/api/candidates", requireAuth, async (req, res) => {
   try {
     await mergeCandidates(req.user);
-    const candidates = await ResumeData.find(getOwnedCandidateQuery(req, null)).sort({ created_at: -1 });
+    // Return only this user's candidates — strict isolation
+    const candidates = await ResumeData.find({
+      $or: [
+        { userId: req.user.userId },
+        { ownerEmail: req.user.email?.toLowerCase() },
+      ]
+    }).sort({ created_at: -1 });
     res.json(candidates);
   } catch (error) {
     console.error("Candidates fetch error:", error);
@@ -591,8 +630,53 @@ app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (r
           if (ct.includes("application/json")) {
             n8nResponse = await webhookRes.json();
           }
+          console.log(`[UPLOAD] N8N succeeded via ${n8nUrl}`);
         } else {
-          console.warn(`[UPLOAD] N8N returned ${webhookRes.status} for files`);
+          const errText = await webhookRes.text().catch(() => "");
+          console.warn(`[UPLOAD] N8N returned ${webhookRes.status} for ${n8nUrl}: ${errText.slice(0, 200)}`);
+
+          // Fallback: try test webhook URL if production URL fails (workflow not activated)
+          const testUrl = process.env.N8N_WEBHOOK_TEST_URL || n8nUrl.replace("/webhook/", "/webhook-test/");
+          if (testUrl !== n8nUrl) {
+            try {
+              // Rebuild FormData for second request (streams can't be reused)
+              const fd2 = new FormData();
+              req.files.forEach((file, index) => {
+                const fp = path.join(UPLOADS_DIR, file.filename);
+                fd2.append(`resume${index}`, fs.createReadStream(fp), {
+                  filename:    file.originalname,
+                  contentType: file.mimetype,
+                });
+              });
+              if (req.body.jobId)          fd2.append("jobId",          req.body.jobId);
+              if (req.body.jobTitle)       fd2.append("jobTitle",       req.body.jobTitle);
+              if (req.body.department)     fd2.append("department",     req.body.department);
+              if (req.body.location)       fd2.append("location",       req.body.location);
+              if (req.body.skills)         fd2.append("skills",         req.body.skills);
+              if (req.body.jobDescription) fd2.append("jobDescription", req.body.jobDescription);
+              if (req.user?.userId)        fd2.append("userId",         req.user.userId);
+              if (req.user?.email)         fd2.append("userEmail",      req.user.email.toLowerCase());
+              if (req.user?.name)          fd2.append("userName",       req.user.name);
+
+              const testRes = await fetch(testUrl, {
+                method:  "POST",
+                body:    fd2,
+                headers: fd2.getHeaders(),
+              });
+              if (testRes.ok) {
+                const ct2 = testRes.headers.get("content-type") || "";
+                if (ct2.includes("application/json")) {
+                  n8nResponse = await testRes.json();
+                }
+                console.log(`[UPLOAD] N8N fallback succeeded via ${testUrl}`);
+              } else {
+                const errText2 = await testRes.text().catch(() => "");
+                console.warn(`[UPLOAD] N8N fallback returned ${testRes.status} for ${testUrl}: ${errText2.slice(0, 200)}`);
+              }
+            } catch (fallbackErr) {
+              console.warn(`[UPLOAD] N8N fallback unreachable: ${fallbackErr.message}`);
+            }
+          }
         }
       } catch (n8nErr) {
         console.warn(`[UPLOAD] N8N unreachable: ${n8nErr.message}`);
@@ -618,21 +702,50 @@ app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (r
   }
 });
 
-// POST /api/candidates/save — Save parsed candidate data with filePath
-app.post("/api/candidates/save", requireAuth, async (req, res) => {
+// POST /api/candidates/save — Save parsed candidate data (used by frontend AND N8N)
+// JWT token se ya body mein userId/userEmail se user identify hota hai
+app.post("/api/candidates/save", async (req, res) => {
   try {
     const data = req.body;
 
-    // userId must come from JWT, not the client
-    const { userId: _ignoredUserId, ...safeData } = data || {};
+    let finalUserId = null;
+    let finalEmail = "";
+    let finalName = "";
+
+    // Try JWT auth first (frontend calls)
+    const authHeader = req.headers.authorization || "";
+    const [scheme, token] = authHeader.split(" ");
+    if (scheme === "Bearer" && token) {
+      try {
+        const jwtSecret = process.env.JWT_SECRET || "change-me";
+        const payload = jwt.verify(token, jwtSecret);
+        finalUserId = payload.userId;
+        finalEmail = payload.email?.toLowerCase() || "";
+        finalName = payload.name || "";
+      } catch {
+        // JWT invalid — try body fields (N8N)
+      }
+    }
+
+    // N8N passes userId + userEmail in body
+    if (!finalUserId && data.userId) {
+      finalUserId = data.userId;
+      finalEmail = data.userEmail?.toLowerCase() || "";
+      finalName = data.userName || "";
+    }
+
+    if (!finalUserId) {
+      return res.status(401).json({ message: "Missing userId or Authorization header." });
+    }
+
+    const { userId: _u, userEmail: _e, userName: _n, ...safeData } = data || {};
 
     const candidate = await new ResumeData({
       ...safeData,
-      userId: req.user.userId,
-      ownerEmail: req.user.email?.toLowerCase() || "",
-      ownerName: req.user.name || "",
+      userId: finalUserId,
+      ownerEmail: finalEmail,
+      ownerName: finalName,
     }).save();
-
 
     res.status(201).json(candidate);
   } catch (error) {

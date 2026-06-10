@@ -21,10 +21,7 @@ export default function Shortlisted({ user }) {
 
       if (!res.ok) throw new Error("Failed to fetch candidates");
       const data = await res.json();
-      const scopedData = user?.userId
-        ? data.filter((candidate) => String(candidate.userId) === String(user.userId))
-        : data;
-      setCandidates(scopedData);
+      setCandidates(data);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -33,12 +30,10 @@ export default function Shortlisted({ user }) {
     }
   };
 
-  useEffect(() => { fetchShortlisted(); }, [user?.userId]);
+  useEffect(() => { fetchShortlisted(); }, []);
 
-  const ownedCandidates = candidates.filter((candidate) => {
-    if (!user?.userId) return true;
-    return String(candidate.userId) === String(user.userId);
-  });
+  // Use all candidates directly — server handles user scoping
+  const ownedCandidates = candidates;
 
   // Score color
   const scoreColor = (score) => {

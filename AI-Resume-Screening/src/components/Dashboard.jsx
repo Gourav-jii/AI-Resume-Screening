@@ -43,10 +43,7 @@ export default function Dashboard({ user, onNavigate }) {
         });
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
-        const scopedData = user?.userId
-          ? data.filter((candidate) => String(candidate.userId) === String(user.userId))
-          : data;
-        setCandidates(scopedData);
+        setCandidates(data);
       } catch {
         setCandidates([]);
       } finally {
@@ -56,10 +53,8 @@ export default function Dashboard({ user, onNavigate }) {
     fetch_();
   }, [user?.userId]);
 
-  const ownedCandidates = candidates.filter((candidate) => {
-    if (!user?.userId) return true;
-    return String(candidate.userId) === String(user.userId);
-  });
+  // Use all candidates directly — server handles user scoping
+  const ownedCandidates = candidates;
 
   // ── Stats ──
   const total       = ownedCandidates.length;

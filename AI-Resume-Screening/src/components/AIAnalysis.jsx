@@ -20,12 +20,9 @@ export default function AIAnalysis({ user }) {
         });
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
-        const scopedData = user?.userId
-          ? data.filter((candidate) => String(candidate.userId) === String(user.userId))
-          : data;
-        setCandidates(scopedData);
+        setCandidates(data);
         // Auto-select first candidate that has analysis
-        const first = scopedData.find((c) => c.resume_analysis?.ats_score);
+        const first = data.find((c) => c.resume_analysis?.ats_score);
         if (first) {
           setSelectedId(first._id);
           setCandidate(first);
@@ -42,10 +39,8 @@ export default function AIAnalysis({ user }) {
     fetchCandidates();
   }, [user?.userId]);
 
-  const ownedCandidates = candidates.filter((candidate) => {
-    if (!user?.userId) return true;
-    return String(candidate.userId) === String(user.userId);
-  });
+  // Use all candidates directly — server handles user scoping
+  const ownedCandidates = candidates;
 
   const handleSelect = (e) => {
     const id = e.target.value;
@@ -66,7 +61,43 @@ export default function AIAnalysis({ user }) {
 
   const strengths = analysis.resume_strengths || [];
   const recommendation = analysis.reason_for_decision || "No recommendation available.";
-  const summary = analysis.summary || candidate?.professional_summary || "No AI summary available for this candidate.";
+
+  // Build a meaningful AI summary from available data
+  const buildSummary = () => {
+    if (analysis.summary) return analysis.summary;
+    if (candidate?.professional_summary) return candidate.professional_summary;
+
+    // Auto-generate from structured data
+    const expLevel = analysis.experience_level || "entry-level";
+    const roles = (analysis.best_matching_roles || []).slice(0, 2).join(" and ");
+    const tech = candidate?.technical_skills || {};
+    const allSkills = [
+      ...(tech.programming_languages || []),
+      ...(tech.frontend || []),
+      ...(tech.backend || []),
+      ...(tech.databases || []),
+    ].slice(0, 5);
+    const workExp = candidate?.work_experience || [];
+    const projects = candidate?.projects || [];
+    const edu = candidate?.education || [];
+
+    let summary = `${name} is a${expLevel.toLowerCase().startsWith("e") ? "n" : ""} ${expLevel.toLowerCase()} professional`;
+    if (roles) summary += ` best suited for ${roles} roles`;
+    summary += ".";
+    if (allSkills.length > 0) summary += ` Key technical skills include ${allSkills.join(", ")}.`;
+    if (workExp.length > 0) summary += ` Has ${workExp.length} work experience${workExp.length > 1 ? "s" : ""} including roles at ${workExp.slice(0, 2).map(w => w.company).filter(Boolean).join(", ") || "various companies"}.`;
+    if (projects.length > 0) summary += ` Has built ${projects.length} project${projects.length > 1 ? "s" : ""}.`;
+    if (edu.length > 0) {
+      const latestEdu = edu[0];
+      if (latestEdu.degree && latestEdu.institution) summary += ` Holds a ${latestEdu.degree} from ${latestEdu.institution}.`;
+    }
+    if (atsScore > 0) summary += ` Overall ATS score: ${atsScore}/100.`;
+    if (analysis.shortlisting_decision) summary += ` AI recommendation: ${analysis.shortlisting_decision}.`;
+
+    return summary || "No AI summary available for this candidate.";
+  };
+
+  const summary = buildSummary();
 
   const getScoreColor = (score) => {
     if (score >= 80) return "#10b981";
