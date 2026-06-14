@@ -84,6 +84,7 @@ const jobDescriptionSchema = new mongoose.Schema({
   location: { type: String },
   skills: { type: String },
   description: { type: String, required: true },
+  thresholdScore: { type: Number, default: 70 },
   createdBy: { type: String },
   createdAt: { type: Date, default: Date.now },
 });
@@ -134,6 +135,8 @@ const resumesDataSchema = new mongoose.Schema({
   created_at: { type: Date, default: Date.now },
   status: { type: String, default: "Pending" },
   source: { type: String, default: "AI Resume Screening" },
+  // Job association
+  jobId: { type: mongoose.Schema.Types.ObjectId, ref: "JobDescription" },
   // File storage fields
   filePath:     { type: String, default: "" },   // stored filename in /uploads
   originalName: { type: String, default: "" },   // original uploaded filename
@@ -332,7 +335,7 @@ app.get("/api/job-description", async (req, res) => {
 app.post("/api/job-description", async (req, res) => {
 
   try {
-    const { jobTitle, department, location, skills, description, createdBy } = req.body;
+    const { jobTitle, department, location, skills, description, thresholdScore, createdBy } = req.body;
 
     if (!jobTitle || !description) {
       return res.status(400).json({ message: "Job title and description are required." });
@@ -344,6 +347,7 @@ app.post("/api/job-description", async (req, res) => {
       location,
       skills,
       description,
+      thresholdScore: thresholdScore != null ? Number(thresholdScore) : 70,
       createdBy,
     });
 
@@ -358,20 +362,46 @@ app.post("/api/job-description", async (req, res) => {
 // PUT /api/job-description/:id
 app.put("/api/job-description/:id", async (req, res) => {
   try {
-    const { jobTitle, department, location, skills, description, createdBy } = req.body;
+    const { jobTitle, department, location, skills, description, thresholdScore, createdBy } = req.body;
 
     if (!jobTitle || !description) {
       return res.status(400).json({ message: "Job title and description are required." });
     }
 
+    const updateFields = { jobTitle, department, location, skills, description };
+    if (thresholdScore != null) updateFields.thresholdScore = Number(thresholdScore);
+
     const job = await JobDescription.findOneAndUpdate(
       { _id: req.params.id, createdBy: createdBy?.toLowerCase() },
-      { jobTitle, department, location, skills, description },
+      updateFields,
       { new: true }
     );
 
     if (!job) {
       return res.status(404).json({ message: "Job not found or unauthorized." });
+    }
+
+    // Dynamic re-evaluation of associated candidates based on the updated threshold score
+    if (thresholdScore != null) {
+      const thresholdVal = Number(thresholdScore);
+      try {
+        const candidatesToUpdate = await ResumeData.find({
+          jobId: job._id,
+          "resume_analysis.ats_score": { $gt: 0 }
+        });
+        
+        for (const candidate of candidatesToUpdate) {
+          const atsScore = candidate.resume_analysis.ats_score;
+          candidate.status = atsScore >= thresholdVal ? "Shortlisted" : "Rejected";
+          if (candidate.resume_analysis) {
+            candidate.resume_analysis.shortlisting_decision = atsScore >= thresholdVal ? "Selected" : "Rejected";
+          }
+          await candidate.save();
+        }
+        console.log(`[JOB UPDATE] Re-evaluated ${candidatesToUpdate.length} candidates for job ${job.jobTitle} with new threshold: ${thresholdVal}`);
+      } catch (reEvalErr) {
+        console.error("Error re-evaluating candidates on job update:", reEvalErr);
+      }
     }
 
     res.json(job);
@@ -500,6 +530,39 @@ async function mergeCandidates(user) {
         bestMatch.achievements = parsed.achievements;
         bestMatch.resume_analysis = parsed.resume_analysis;
         bestMatch.status = parsed.status || bestMatch.status || "Pending";
+
+        // Auto-set status based on threshold score from the associated job
+        const atsScore = parsed.resume_analysis?.ats_score || 0;
+        if (bestMatch.jobId && atsScore > 0) {
+          try {
+            const associatedJob = await JobDescription.findById(bestMatch.jobId);
+            if (associatedJob) {
+              const threshold = associatedJob.thresholdScore || 70;
+              if (atsScore >= threshold) {
+                bestMatch.status = "Shortlisted";
+                bestMatch.resume_analysis.shortlisting_decision = "Selected";
+              } else {
+                bestMatch.status = "Rejected";
+                bestMatch.resume_analysis.shortlisting_decision = "Rejected";
+              }
+            }
+          } catch (jobErr) {
+            console.error("Error fetching job for threshold:", jobErr);
+          }
+        }
+
+        // Fallback: if no jobId, use N8N shortlisting_decision
+        if (!bestMatch.jobId || atsScore === 0) {
+          const decision = (parsed.resume_analysis?.shortlisting_decision || "").toLowerCase();
+          if (decision === "selected" || decision === "shortlist" || decision === "shortlisted") {
+            bestMatch.status = "Shortlisted";
+          } else if (decision === "rejected" || decision === "reject") {
+            bestMatch.status = "Rejected";
+          } else if (bestMatch.status === "Pending") {
+            bestMatch.status = "Pending";
+          }
+        }
+
         // Ensure ownership is set on the merged record
         if (!bestMatch.userId) bestMatch.userId = user.userId;
         if (!bestMatch.ownerEmail) bestMatch.ownerEmail = user.email?.toLowerCase();
@@ -518,6 +581,88 @@ async function mergeCandidates(user) {
   }
 }
 
+// POST /api/n8n/result — N8N calls this to update existing placeholder with AI analysis
+// Matches by originalName + userId/userEmail, updates in place (no duplicate)
+app.post("/api/n8n/result", async (req, res) => {
+  try {
+    const data = req.body;
+    const userId  = data.userId;
+    const userEmail = data.userEmail?.toLowerCase();
+    const originalName = data.originalName;
+
+    if (!originalName) {
+      return res.status(400).json({ message: "originalName is required." });
+    }
+
+    const query = { originalName };
+    if (userId || userEmail) {
+      query.$or = [];
+      if (userId) query.$or.push({ userId });
+      if (userEmail) query.$or.push({ ownerEmail: userEmail });
+    }
+
+    const { userId: _u, userEmail: _e, originalName: _on, ...updateData } = data;
+
+    const updated = await ResumeData.findOneAndUpdate(
+      query,
+      { $set: updateData },
+      { new: true, sort: { created_at: -1 } }
+    );
+
+    if (updated) {
+      // Auto-shortlist based on threshold score
+      const atsScore = updated.resume_analysis?.ats_score || 0;
+      if (updated.jobId && atsScore > 0) {
+        try {
+          const associatedJob = await JobDescription.findById(updated.jobId);
+          if (associatedJob) {
+            const threshold = associatedJob.thresholdScore || 70;
+            updated.status = atsScore >= threshold ? "Shortlisted" : "Rejected";
+            updated.resume_analysis.shortlisting_decision = atsScore >= threshold ? "Selected" : "Rejected";
+            await updated.save();
+          }
+        } catch (jobErr) {
+          console.error("Error fetching job for threshold (n8n result):", jobErr);
+        }
+      }
+      console.log(`[N8N] Updated: ${originalName} | score: ${updated.resume_analysis?.ats_score}`);
+      return res.json(updated);
+    }
+
+    // No placeholder — create new
+    const newCandidateData = {
+      ...updateData,
+      userId: userId || undefined,
+      ownerEmail: userEmail || "",
+      originalName,
+    };
+
+    // Auto-shortlist based on threshold score
+    const atsScore = newCandidateData.resume_analysis?.ats_score || 0;
+    if (newCandidateData.jobId && atsScore > 0) {
+      try {
+        const associatedJob = await JobDescription.findById(newCandidateData.jobId);
+        if (associatedJob) {
+          const threshold = associatedJob.thresholdScore || 70;
+          newCandidateData.status = atsScore >= threshold ? "Shortlisted" : "Rejected";
+          if (newCandidateData.resume_analysis) {
+            newCandidateData.resume_analysis.shortlisting_decision = atsScore >= threshold ? "Selected" : "Rejected";
+          }
+        }
+      } catch (jobErr) {
+        console.error("Error fetching job for threshold (new candidate):", jobErr);
+      }
+    }
+
+    const candidate = await new ResumeData(newCandidateData).save();
+    console.log(`[N8N] Created: ${originalName} | status: ${candidate.status}`);
+    res.status(201).json(candidate);
+  } catch (error) {
+    console.error("N8N result save error:", error);
+    res.status(500).json({ message: "Server error." });
+  }
+});
+
 // GET /api/candidates
 app.get("/api/candidates", requireAuth, async (req, res) => {
   try {
@@ -528,7 +673,7 @@ app.get("/api/candidates", requireAuth, async (req, res) => {
         { userId: req.user.userId },
         { ownerEmail: req.user.email?.toLowerCase() },
       ]
-    }).sort({ created_at: -1 });
+    }).populate("jobId").sort({ created_at: -1 });
     res.json(candidates);
   } catch (error) {
     console.error("Candidates fetch error:", error);
@@ -552,7 +697,7 @@ app.put("/api/candidates/:id/status", requireAuth, async (req, res) => {
         },
       },
       { new: true }
-    );
+    ).populate("jobId");
 
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found." });
@@ -597,6 +742,39 @@ app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (r
       return res.status(400).json({ message: "No files uploaded." });
     }
 
+    // ── Duplicate check: filter out files already uploaded by this user ──
+    const newFiles = [];
+    const skippedFiles = [];
+
+    for (const file of req.files) {
+      const existing = await ResumeData.findOne({
+        originalName: file.originalname,
+        $or: [
+          { userId: req.user.userId },
+          { ownerEmail: req.user.email?.toLowerCase() },
+        ],
+      });
+
+      if (existing) {
+        // File already processed — delete the newly uploaded copy from disk
+        const fullPath = path.join(UPLOADS_DIR, file.filename);
+        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+        skippedFiles.push({ filePath: existing.filePath, originalName: file.originalname, skipped: true });
+        console.log(`[UPLOAD] Skipping duplicate file: ${file.originalname}`);
+      } else {
+        newFiles.push(file);
+      }
+    }
+
+    // If all files are duplicates, return skipped info
+    if (newFiles.length === 0) {
+      return res.json({
+        success: true,
+        files: skippedFiles,
+        message: "All files already uploaded.",
+      });
+    }
+
     const n8nUrl  = process.env.N8N_WEBHOOK_URL || "http://localhost:5678/webhook/resume_upload";
     const devMode = process.env.DEV_MODE === "true";
 
@@ -607,7 +785,7 @@ app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (r
         // Read saved files from disk and forward to N8N
         const fd = new FormData();
 
-        req.files.forEach((file, index) => {
+        newFiles.forEach((file, index) => {
           const filePath = path.join(UPLOADS_DIR, file.filename);
           fd.append(`resume${index}`, fs.createReadStream(filePath), {
             filename:    file.originalname,
@@ -648,7 +826,7 @@ app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (r
             try {
               // Rebuild FormData for second request (streams can't be reused)
               const fd2 = new FormData();
-              req.files.forEach((file, index) => {
+              newFiles.forEach((file, index) => {
                 const fp = path.join(UPLOADS_DIR, file.filename);
                 fd2.append(`resume${index}`, fs.createReadStream(fp), {
                   filename:    file.originalname,
@@ -690,7 +868,7 @@ app.post("/api/resume-upload", requireAuth, upload.array("resume", 20), async (r
       }
     }
 
-    const uploadedFiles = req.files.map(file => {
+    const uploadedFiles = newFiles.map(file => {
       const fullPath = path.join(UPLOADS_DIR, file.filename);
       const exists = fs.existsSync(fullPath);
       console.log(`[UPLOAD] File saved: ${file.filename} | exists: ${exists} | size: ${file.size} bytes`);
@@ -751,6 +929,48 @@ app.post("/api/candidates/save", async (req, res) => {
     }
 
     const { userId: _u, userEmail: _e, userName: _n, ...safeData } = data || {};
+
+    // Auto-set status from threshold score if jobId is present
+    const atsScore = safeData.resume_analysis?.ats_score || 0;
+    if (safeData.jobId && atsScore > 0) {
+      try {
+        const associatedJob = await JobDescription.findById(safeData.jobId);
+        if (associatedJob) {
+          const threshold = associatedJob.thresholdScore || 70;
+          safeData.status = atsScore >= threshold ? "Shortlisted" : "Rejected";
+          if (safeData.resume_analysis) {
+            safeData.resume_analysis.shortlisting_decision = atsScore >= threshold ? "Selected" : "Rejected";
+          }
+        }
+      } catch (jobErr) {
+        console.error("Error fetching job for threshold (save):", jobErr);
+      }
+    }
+
+    // Fallback: Auto-set status from N8N shortlisting_decision
+    if (!safeData.status || safeData.status === "Pending") {
+      const decision = (safeData.resume_analysis?.shortlisting_decision || "").toLowerCase();
+      if (decision === "selected" || decision === "shortlist" || decision === "shortlisted") {
+        safeData.status = "Shortlisted";
+      } else if (decision === "rejected" || decision === "reject") {
+        safeData.status = "Rejected";
+      }
+    }
+
+    // Check for duplicate — same originalName already exists for this user
+    if (safeData.originalName && finalUserId) {
+      const existing = await ResumeData.findOne({
+        originalName: safeData.originalName,
+        $or: [
+          { userId: finalUserId },
+          { ownerEmail: finalEmail },
+        ]
+      });
+      if (existing) {
+        // Return existing record instead of creating duplicate
+        return res.status(200).json(existing);
+      }
+    }
 
     const candidate = await new ResumeData({
       ...safeData,

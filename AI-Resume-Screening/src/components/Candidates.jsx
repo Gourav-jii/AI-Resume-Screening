@@ -234,7 +234,16 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
   };
 
   // Setup unique dropdown filters dynamically from candidate data
-  const uniqueJobs = ["All Jobs", ...new Set(ownedCandidates.flatMap(c => c.resume_analysis?.best_matching_roles || []).filter(Boolean))].sort();
+  const uniqueJobs = ["All Jobs", ...new Set(
+    ownedCandidates.flatMap(c => {
+      const titles = [];
+      if (c.jobId?.jobTitle) titles.push(c.jobId.jobTitle);
+      if (c.resume_analysis?.best_matching_roles) {
+        titles.push(...c.resume_analysis.best_matching_roles);
+      }
+      return titles;
+    }).filter(Boolean)
+  )].sort();
   const uniqueSkills = ["All Skills", ...new Set(ownedCandidates.flatMap(c => getCandidateSkillsList(c)).filter(Boolean))].sort();
   const uniqueExperience = ["All Experience", ...new Set(ownedCandidates.map(c => c.resume_analysis?.experience_level).filter(Boolean))].sort();
 
@@ -250,6 +259,7 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
       skillsList.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesJob = selectedJob === "All Jobs" || 
+      candidate.jobId?.jobTitle === selectedJob ||
       (candidate.resume_analysis?.best_matching_roles || []).includes(selectedJob);
 
     const matchesSkill = selectedSkill === "All Skills" || 
@@ -815,6 +825,7 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
                 <th>Experience</th>
                 <th>AI Score</th>
                 <th>Match Score</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -868,6 +879,11 @@ Reason: ${candidate.resume_analysis?.reason_for_decision || "N/A"}
                       {candidate.resume_analysis?.ats_score || 0}/100
                     </td>
                     <td data-label="Match Score">{candidate.resume_analysis?.ats_score || 0}%</td>
+                    <td data-label="Status">
+                      <span className={`status-badge status-${(candidate.status || 'pending').toLowerCase()}`}>
+                        {candidate.status || "Pending"}
+                      </span>
+                    </td>
                     <td data-label="Actions">
                       <div className="actions-container">
                         <button className="action-btn" title="View Profile" onClick={() => setSelectedCandidate(candidate)}>

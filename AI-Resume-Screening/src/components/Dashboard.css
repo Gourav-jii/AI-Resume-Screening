@@ -6,6 +6,8 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* ── Header ── */
@@ -107,9 +109,6 @@
   color: var(--dash-text-light, #94a3b8);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .db-stat-value {
@@ -572,19 +571,168 @@
   .db-activity-card { grid-column: auto; }
 }
 
-/* Mobile */
+/* ── Mobile: convert Recent Candidates table → stacked cards ── */
+@media (max-width: 720px) {
+  .db-container { gap: 16px; }
+  .db-card { padding: 16px 14px; border-radius: 14px; }
+  .db-recent-card { padding: 16px 14px; }
+
+  /* Activity feed — ensure text wraps */
+  .db-activity-text {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Table → card layout */
+  .db-table-wrap {
+    overflow-x: visible;
+    margin: 0;
+  }
+
+  .db-table thead { display: none; }
+
+  .db-table,
+  .db-table tbody,
+  .db-table tr,
+  .db-table td {
+    display: block;
+    width: 100% !important;
+  }
+
+  .db-row {
+    background: var(--dash-muted, #f8f7fc);
+    border: 1px solid var(--dash-panel-border, rgba(145,92,255,0.1));
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(99, 87, 135, 0.05);
+  }
+
+  .db-row:last-child { margin-bottom: 0; }
+
+  .db-table td {
+    padding: 6px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    border-bottom: none;
+  }
+
+  /* Add labels via data-label (fallback) or nth-child pseudo-labels */
+  .db-table td::before {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--dash-text-light, #94a3b8);
+    flex-shrink: 0;
+    min-width: 80px;
+  }
+
+  /* Candidate cell — full width, no label */
+  .db-table td:nth-child(1) {
+    justify-content: flex-start;
+    padding-bottom: 10px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--dash-panel-border, rgba(145,92,255,0.08));
+  }
+  .db-table td:nth-child(1)::before { display: none; }
+
+  /* Labels for each column */
+  .db-table td:nth-child(2)::before { content: "Skills"; }
+  .db-table td:nth-child(3)::before { content: "Experience"; }
+  .db-table td:nth-child(4)::before { content: "AI Score"; }
+  .db-table td:nth-child(5)::before { content: "Match"; }
+  .db-table td:nth-child(6)::before { content: "Status"; }
+
+  /* Skills pills — wrap properly */
+  .db-skills-pills {
+    justify-content: flex-end;
+    max-width: 60%;
+  }
+
+  /* Candidate name & email — prevent overflow */
+  .db-cname {
+    white-space: normal;
+    word-break: break-word;
+    font-size: 13px;
+  }
+
+  .db-cemail {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+  }
+
+  /* Match cell — constrain width */
+  .db-match-cell {
+    min-width: unset;
+    max-width: 120px;
+    align-items: flex-end;
+  }
+}
+
+/* Small mobile */
 @media (max-width: 560px) {
-  .db-stats-grid { grid-template-columns: 1fr 1fr; }
+  .db-stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .db-stat-card {
+    padding: 14px 12px;
+    gap: 10px;
+  }
+  .db-stat-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+  .db-stat-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+  .db-stat-label {
+    font-size: 9.5px;
+    line-height: 1.3;
+    letter-spacing: 0.02em;
+  }
+  .db-stat-value {
+    font-size: 18px;
+  }
+  .db-stat-card:last-child {
+    grid-column: span 2;
+  }
+
   .db-header { flex-direction: column; align-items: stretch; }
   .db-cta { justify-content: center; }
   .db-title { font-size: 22px; }
-  .db-table th:nth-child(3),
-  .db-table td:nth-child(3) { display: none; } /* hide Experience */
-  .db-table th:nth-child(5),
-  .db-table td:nth-child(5) { display: none; } /* hide Match Score bar */
+  .db-subtitle { font-size: 12.5px; }
+
+  /* Bar chart labels on small screens */
+  .db-bar-label { font-size: 10px; }
+  .db-bars { gap: 14px; }
 }
 
 @media (max-width: 380px) {
-  .db-stats-grid { grid-template-columns: 1fr; }
-  .db-stat-card  { flex-direction: row; }
+  .db-stats-grid { grid-template-columns: 1fr; gap: 8px; }
+  .db-stat-card  { flex-direction: row; padding: 14px 12px; gap: 12px; }
+  .db-stat-icon { width: 40px; height: 40px; font-size: 18px; }
+  .db-stat-icon svg { width: 18px !important; height: 18px !important; }
+  .db-stat-label { font-size: 10px; }
+  .db-stat-value { font-size: 20px; }
+  .db-stat-card:last-child { grid-column: auto; }
+
+  /* Skills pills — single column on tiny screens */
+  .db-skills-pills {
+    max-width: 50%;
+  }
+
+  .db-card { padding: 14px 12px; border-radius: 12px; }
+  .db-card-title { font-size: 13.5px; }
+  .db-view-all-btn { padding: 7px 14px; font-size: 12px; }
+}
+
+/* Dark mode overrides for mobile cards */
+[data-theme="dark"] .db-row {
+  background: var(--dash-card, rgba(22, 20, 35, 0.98));
 }

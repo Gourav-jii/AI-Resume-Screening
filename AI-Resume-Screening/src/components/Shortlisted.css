@@ -344,10 +344,26 @@
   /* Candidate cell: no label, full width */
   .sl-table td:first-child { justify-content: flex-start; }
   .sl-table td:first-child::before { display: none; }
+  .sl-table td:first-child .sl-candidate-cell { width: 100%; }
+  .sl-table td:first-child .sl-email {
+    white-space: normal;
+    word-break: break-all;
+  }
 }
 
 @media (max-width: 480px) {
   .sl-header { flex-direction: column; align-items: stretch; }
   .sl-export-btn { justify-content: center; }
   .sl-table th, .sl-table td { padding: 10px 12px; }
+
+  /* Scale badge down on super small screens */
+  .sl-status-badge {
+    font-size: 10.5px;
+    padding: 3px 8px;
+  }
+  .sl-name {
+    font-size: 13px;
+    white-space: normal;
+    word-break: break-word;
+  }
 }

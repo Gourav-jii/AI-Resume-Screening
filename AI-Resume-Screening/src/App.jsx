@@ -42,8 +42,10 @@ function App() {
   const [location, setLocation] = useState("");
   const [skills, setSkills] = useState("");
   const [jobDescription, setJobDescription] = useState("");
+  const [thresholdScore, setThresholdScore] = useState(70);
   const [showJobModal, setShowJobModal] = useState(false);
   const [editingJob, setEditingJob] = useState(null); // null = add mode, object = edit mode
+  const [jdFormSubmitted, setJdFormSubmitted] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [savedJobDescriptions, setSavedJobDescriptions] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
@@ -51,6 +53,7 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [jdViewMode, setJdViewMode] = useState("list"); // "list" | "grid"
   const toastTimer = useRef(null);
   const panelRef = useRef(null);
@@ -135,9 +138,26 @@ function App() {
       const result = await res.json();
 
       if (result.files && result.files.length > 0) {
-        for (let i = 0; i < result.files.length; i++) {
-          const fileInfo = result.files[i];
-          setUploadProgress({ current: i + 1, total: result.files.length });
+        // Count skipped duplicates
+        const skipped = result.files.filter(f => f.skipped).length;
+        const toProcess = result.files.filter(f => !f.skipped);
+
+        if (skipped > 0 && toProcess.length === 0) {
+          showToast(`${skipped} resume${skipped > 1 ? "s" : ""} already uploaded. No duplicates added.`, "error");
+          setSelectedFiles([]);
+          setSelectedJobId("");
+          setIsUploading(false);
+          setUploadProgress({ current: 0, total: 0 });
+          return;
+        }
+
+        if (skipped > 0) {
+          showToast(`${skipped} duplicate${skipped > 1 ? "s" : ""} skipped.`, "error");
+        }
+
+        for (let i = 0; i < toProcess.length; i++) {
+          const fileInfo = toProcess[i];
+          setUploadProgress({ current: i + 1, total: toProcess.length });
 
           // Save candidate placeholder to database
           await fetch(`${API_URL}/api/candidates/save`, {
@@ -154,11 +174,12 @@ function App() {
                   .replace(/\s+/g, " ")
                   .trim()
                   .split(" ")
-                  .slice(0, 4)           // max 4 words from filename
+                  .slice(0, 4)
                   .join(" ") || "Candidate"
               },
               filePath:     fileInfo.filePath,
               originalName: fileInfo.originalName,
+              jobId:        selectedJobId,
               source:       "AI Resume Screening",
               status:       "Pending",
             }),
@@ -175,12 +196,10 @@ function App() {
 
     if (failCount === 0) {
       showToast(`${successCount} resume${successCount > 1 ? "s" : ""} uploaded successfully!`, "success");
-      setActiveSection("candidates");
     } else if (successCount === 0) {
       showToast("All uploads failed. Please try again.", "error");
     } else {
       showToast(`${successCount} uploaded, ${failCount} failed.`, "error");
-      setActiveSection("candidates");
     }
 
     setSelectedFiles([]);
@@ -204,26 +223,31 @@ function App() {
   };
 
   const openAddModal = () => {
+    setJdFormSubmitted(false);
     setEditingJob(null);
     setJobTitle("");
     setDepartment("");
     setLocation("");
     setSkills("");
     setJobDescription("");
+    setThresholdScore(70);
     setShowJobModal(true);
   };
 
   const openEditModal = (job) => {
+    setJdFormSubmitted(false);
     setEditingJob(job);
     setJobTitle(job.jobTitle);
     setDepartment(job.department || "");
     setLocation(job.location || "");
     setSkills(job.skills || "");
     setJobDescription(job.description || "");
+    setThresholdScore(job.thresholdScore != null ? job.thresholdScore : 70);
     setShowJobModal(true);
   };
 
   const closeModal = () => {
+    setJdFormSubmitted(false);
     setShowJobModal(false);
     setEditingJob(null);
     setJobTitle("");
@@ -231,13 +255,15 @@ function App() {
     setLocation("");
     setSkills("");
     setJobDescription("");
+    setThresholdScore(70);
   };
 
   const handleJobDescriptionSubmit = async (e) => {
     e.preventDefault();
+    setJdFormSubmitted(true);
 
-    if (!jobTitle.trim() || !jobDescription.trim()) {
-      showToast("Please enter both job title and description.", "error");
+    if (!jobTitle.trim() || !skills.trim() || !jobDescription.trim()) {
+      showToast("Please fill in all required fields.", "error");
       return;
     }
 
@@ -257,6 +283,7 @@ function App() {
           location,
           skills,
           description: jobDescription,
+          thresholdScore: Number(thresholdScore),
           createdBy: user?.email,
         }),
       });
@@ -367,6 +394,18 @@ function App() {
       ) : (
         <div className="dashboard-shell">
           <header className="topbar">
+            <button
+              type="button"
+              className="mobile-menu-toggle"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open navigation menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+              </svg>
+            </button>
             <div className="brand">
               <span className="brand-mark">R</span>
               <div className="brand-copy">
@@ -440,6 +479,115 @@ function App() {
               )}
             </div>
           </header>
+
+          {mobileMenuOpen && (
+            <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
+              <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
+                <div className="mobile-drawer-header">
+                  <div className="brand">
+                    <span className="brand-mark">R</span>
+                    <div className="brand-copy">
+                      <strong>AI Resume</strong>
+                      <span>Screening</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="mobile-drawer-close"
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-label="Close menu"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="mobile-drawer-body">
+                  <div className="drawer-heading">Workspace</div>
+                  <nav className="drawer-nav">
+                    <button
+                      type="button"
+                      className={`drawer-item ${activeSection === "dashboard" ? "active" : ""}`}
+                      onClick={() => { handleSidebarSelect("dashboard"); setMobileMenuOpen(false); }}
+                    >
+                      Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      className={`drawer-item ${activeSection === "upload" ? "active" : ""}`}
+                      onClick={() => { handleSidebarSelect("upload"); setMobileMenuOpen(false); }}
+                    >
+                      Upload Resume
+                    </button>
+                    <button
+                      type="button"
+                      className={`drawer-item ${activeSection === "job" ? "active" : ""}`}
+                      onClick={() => { handleSidebarSelect("job"); setMobileMenuOpen(false); }}
+                    >
+                      Job Description
+                    </button>
+                    <button
+                      type="button"
+                      className={`drawer-item ${activeSection === "candidates" ? "active" : ""}`}
+                      onClick={() => { handleSidebarSelect("candidates"); setMobileMenuOpen(false); }}
+                    >
+                      Candidates
+                    </button>
+                    <button
+                      type="button"
+                      className={`drawer-item ${activeSection === "shortlisted" ? "active" : ""}`}
+                      onClick={() => { handleSidebarSelect("shortlisted"); setMobileMenuOpen(false); }}
+                    >
+                      Shortlisted
+                    </button>
+                    <button
+                      type="button"
+                      className={`drawer-item ${activeSection === "aianalysis" ? "active" : ""}`}
+                      onClick={() => { handleSidebarSelect("aianalysis"); setMobileMenuOpen(false); }}
+                    >
+                      AI Analysis
+                    </button>
+                  </nav>
+
+                  <div className="drawer-divider" />
+
+                  <button
+                    type="button"
+                    className="drawer-theme-toggle"
+                    onClick={() => setDarkMode((d) => !d)}
+                  >
+                    <span className="theme-toggle-label">
+                      {darkMode ? "Dark Mode" : "Light Mode"}
+                    </span>
+                    <span className="theme-toggle-track">
+                      <span className="theme-toggle-thumb" style={{ transform: darkMode ? "translateX(18px)" : "translateX(0px)" }} />
+                    </span>
+                  </button>
+                </div>
+
+                <div className="mobile-drawer-footer">
+                  <div className="drawer-user">
+                    <div className="drawer-avatar">
+                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                    <div className="drawer-user-meta">
+                      <span className="drawer-user-name">{user.name}</span>
+                      <small className="drawer-user-email">{user.email}</small>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="drawer-signout-btn"
+                    onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="dashboard-layout">
             <aside className="dashboard-sidebar">
@@ -757,14 +905,17 @@ function App() {
                               )}
                             </div>
 
-                            {/* Row 2: location + skills badges */}
-                            {(job.location || job.skills) && (
+                            {/* Row 2: location + skills + threshold badges */}
+                            {(job.location || job.skills || job.thresholdScore != null) && (
                               <div className="jd-card-badges">
                                 {job.location && (
                                   <span className="jd-badge jd-badge-loc"> {job.location}</span>
                                 )}
                                 {job.skills && (
                                   <span className="jd-badge jd-badge-skill"> {job.skills}</span>
+                                )}
+                                {job.thresholdScore != null && (
+                                  <span className="jd-badge jd-badge-threshold"> Threshold: {job.thresholdScore}%</span>
                                 )}
                               </div>
                             )}
@@ -847,8 +998,8 @@ function App() {
 
                         <form className="job-form modal-form" onSubmit={handleJobDescriptionSubmit}>
                           <div className="job-form-grid">
-                            <label>
-                              Job Title
+                            <label className={jdFormSubmitted && !jobTitle.trim() ? "has-error" : ""}>
+                              <span className="label-text">Job Title <span className="required">*</span></span>
                               <input
                                 type="text"
                                 value={jobTitle}
@@ -874,8 +1025,8 @@ function App() {
                                 placeholder="Remote / New York"
                               />
                             </label>
-                            <label>
-                              Required Skills
+                            <label className={jdFormSubmitted && !skills.trim() ? "has-error" : ""}>
+                              <span className="label-text">Required Skills <span className="required">*</span></span>
                               <input
                                 type="text"
                                 value={skills}
@@ -883,10 +1034,22 @@ function App() {
                                 placeholder="Leadership, SQL, UX"
                               />
                             </label>
+                            <label>
+                              <span className="label-text">Threshold Score (%)</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={thresholdScore}
+                                onChange={(e) => setThresholdScore(e.target.value)}
+                                placeholder="70"
+                              />
+                              <span className="field-hint">Candidates scoring at or above this threshold will be auto-shortlisted</span>
+                            </label>
                           </div>
 
-                          <label>
-                            Job Description
+                          <label className={jdFormSubmitted && !jobDescription.trim() ? "has-error" : ""}>
+                            <span className="label-text">Job Description <span className="required">*</span></span>
                             <textarea
                               value={jobDescription}
                               onChange={(e) => setJobDescription(e.target.value)}

@@ -45,8 +45,15 @@ export default function Shortlisted({ user }) {
 
   // Unique job titles for filter
   const jobTitles = ["All", ...new Set(
-    ownedCandidates.flatMap(c => c.resume_analysis?.best_matching_roles || []).filter(Boolean)
-  )];
+    ownedCandidates.flatMap(c => {
+      const titles = [];
+      if (c.jobId?.jobTitle) titles.push(c.jobId.jobTitle);
+      if (c.resume_analysis?.best_matching_roles) {
+        titles.push(...c.resume_analysis.best_matching_roles);
+      }
+      return titles;
+    }).filter(Boolean)
+  )].sort();
 
   // Apply search + job + status filter
   const filtered = ownedCandidates.filter(c => {
@@ -57,6 +64,7 @@ export default function Shortlisted({ user }) {
 
     const matchSearch = !q || name.includes(q) || email.includes(q);
     const matchJob    = jobFilter === "All" ||
+      c.jobId?.jobTitle === jobFilter ||
       (c.resume_analysis?.best_matching_roles || []).includes(jobFilter);
     const matchStatus = statusFilter === "All" ||
       status === statusFilter.toLowerCase();
@@ -214,7 +222,7 @@ export default function Shortlisted({ user }) {
               {filtered.map((c, i) => {
                 const name      = c.candidate_profile?.full_name || "Unknown";
                 const email     = c.candidate_profile?.email     || "";
-                const jobRoles  = (c.resume_analysis?.best_matching_roles || []).join(", ") || "—";
+                const jobRoles  = c.jobId?.jobTitle || (c.resume_analysis?.best_matching_roles || []).join(", ") || "—";
                 const atsScore  = c.resume_analysis?.ats_score   || 0;
                 const date      = c.created_at
                   ? new Date(c.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })

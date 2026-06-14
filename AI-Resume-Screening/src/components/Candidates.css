@@ -41,6 +41,8 @@
   flex-direction: column;
   gap: 1.25rem;
   padding: 0;
+  overflow: visible;
+  min-width: 0;
 }
 
 /* Header Row */
@@ -165,12 +167,29 @@
 /* Table */
 .candidates-table {
   width: 100%;
+  min-width: unset;
   border-collapse: collapse;
 }
 
+/* Column widths — percentage based, no fixed layout */
+.candidates-table th:nth-child(1),
+.candidates-table td:nth-child(1) { width: 22%; }   /* Candidate */
+.candidates-table th:nth-child(2),
+.candidates-table td:nth-child(2) { width: 14%; }   /* Skills */
+.candidates-table th:nth-child(3),
+.candidates-table td:nth-child(3) { width: 10%; }   /* Experience */
+.candidates-table th:nth-child(4),
+.candidates-table td:nth-child(4) { width: 9%; }    /* AI Score */
+.candidates-table th:nth-child(5),
+.candidates-table td:nth-child(5) { width: 9%; }    /* Match Score */
+.candidates-table th:nth-child(6),
+.candidates-table td:nth-child(6) { width: 10%; }   /* Status */
+.candidates-table th:last-child,
+.candidates-table td:last-child    { width: 26%; white-space: nowrap; }  /* Actions */
+
 .candidates-table th {
-  padding: 0.75rem 1rem;
-  font-size: 0.8rem;
+  padding: 0.75rem 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-light);
   text-transform: uppercase;
@@ -182,7 +201,7 @@
 }
 
 .candidates-table td {
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 0.75rem;
   font-size: 0.875rem;
   color: var(--text-mid);
   border-bottom: 1px solid var(--border-light);
@@ -206,6 +225,8 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .candidate-avatar {
@@ -224,11 +245,19 @@
   font-weight: 600;
   color: var(--text-dark);
   font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
 }
 
 .candidate-email {
   color: var(--text-light);
   font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
 }
 
 /* Skills */
@@ -257,7 +286,9 @@
 /* Actions */
 .actions-container {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .action-btn {
@@ -265,12 +296,26 @@
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
-  padding: 0.35rem 0.7rem;
-  font-size: 0.78rem;
-  font-weight: 500;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.action-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.action-btn-delete {
+  background: var(--red);
+}
+
+.action-btn-delete:hover {
+  background: #dc2626;
 }
 
 .action-btn:hover {
@@ -1531,4 +1576,277 @@
 [data-theme="dark"] .btn-cancel-select {
   color: #a78bfa;
   border-color: rgba(167, 139, 250, 0.3);
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE LAYOUTS FOR CANDIDATES PAGE
+   ═══════════════════════════════════════════ */
+
+/* Overview Tab 3-col grid and Profile Header stacking */
+@media (max-width: 900px) {
+  .overview-tab-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .profile-header-card {
+    padding: 1.25rem 1.5rem;
+    gap: 1.25rem;
+  }
+}
+
+/* Stacking Table on Mobile */
+@media (max-width: 720px) {
+  .table-responsive {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    overflow: visible;
+  }
+  
+  .candidates-table thead {
+    display: none;
+  }
+  
+  .candidates-table,
+  .candidates-table tbody,
+  .candidates-table tr,
+  .candidates-table td {
+    display: block;
+    width: 100% !important;
+  }
+  
+  .candidates-table tr {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .candidates-table tr:hover {
+    background: var(--bg-muted);
+  }
+  
+  .candidates-table td {
+    padding: 8px 0;
+    border-bottom: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  /* Use data-label for text prefix */
+  .candidates-table td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-light);
+    flex-shrink: 0;
+    min-width: 100px;
+    text-align: left;
+  }
+  
+  /* Reset checkbox column display */
+  .candidates-table td.col-check {
+    justify-content: flex-start;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .candidates-table td.col-check::before {
+    content: "Select Candidate";
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-light);
+    margin-right: 12px;
+  }
+  
+  /* Candidate Info Cell: full width, align left */
+  .candidates-table td[data-label="Candidate"] {
+    justify-content: flex-start;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 8px;
+  }
+  .candidates-table td[data-label="Candidate"]::before {
+    display: none;
+  }
+  .candidates-table td[data-label="Candidate"] .candidate-info {
+    width: 100%;
+  }
+  .candidates-table td[data-label="Candidate"] .candidate-email {
+    white-space: normal;
+    word-break: break-all;
+  }
+  
+  /* Skills Cell: wrap items */
+  .candidates-table td[data-label="Skills"] {
+    align-items: flex-start;
+    flex-direction: row;
+  }
+  .candidates-table td[data-label="Skills"] .skills-container {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    flex-grow: 1;
+    max-width: 65%;
+  }
+
+  /* Actions Container */
+  .candidates-table td[data-label="Actions"] {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+    justify-content: space-between;
+  }
+  .candidates-table td[data-label="Actions"]::before {
+    display: none;
+  }
+  .candidates-table td[data-label="Actions"] .actions-container {
+    justify-content: stretch;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+  .candidates-table td[data-label="Actions"] .action-btn {
+    flex: 1;
+    min-width: 80px;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+/* Deep mobile adjustments */
+@media (max-width: 600px) {
+  .profile-header-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .profile-header-left {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .profile-meta-grid {
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .profile-header-right {
+    justify-content: center;
+    width: 100%;
+  }
+  .candidates-header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .candidates-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-box {
+    width: 100% !important;
+  }
+  .btn-filter {
+    justify-content: center;
+  }
+  .candidates-filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-select {
+    width: 100%;
+  }
+  
+  .overview-card.education-col {
+    margin-top: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-avatar-large {
+    width: 50px;
+    height: 50px;
+    font-size: 1.1rem;
+  }
+
+  .profile-name {
+    font-size: 1.1rem;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .profile-meta-grid {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .score-badge-card {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .badge-value {
+    font-size: 1.1rem;
+  }
+
+  .actions-container {
+    flex-wrap: wrap;
+  }
+
+  .metric-label {
+    min-width: 90px;
+    font-size: 0.78rem;
+  }
+
+  /* Shrink text for badges on super small screens */
+  .status-badge {
+    font-size: 10.5px;
+    padding: 3px 8px;
+  }
+}
+
+/* ── Status Badges ── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-shortlisted {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.status-rejected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+.status-pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+/* Dark mode adjustments for badges */
+[data-theme="dark"] .status-shortlisted {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+[data-theme="dark"] .status-rejected {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+[data-theme="dark"] .status-pending {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
 }
