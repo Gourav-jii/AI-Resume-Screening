@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import "./AIAnalysis.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const API_URL = import.meta.env.VITE_API_URL || (window.location.port === "5173" ? "http://localhost:4000" : "");
 
 export default function AIAnalysis({ user }) {
   const [candidates, setCandidates] = useState([]);

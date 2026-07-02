@@ -1046,6 +1046,19 @@ app.get("/api/candidates/:id/download", requireAuth, async (req, res) => {
   }
 });
 
+// Serve static assets in production
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "dist")));
+
+  app.get("*", (req, res, next) => {
+    // Skip API routes and upload routes
+    if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) {
+      return next();
+    }
+    res.sendFile(path.join(__dirname, "dist", "index.html"));
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

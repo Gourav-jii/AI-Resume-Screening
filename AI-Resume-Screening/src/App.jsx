@@ -7,7 +7,7 @@ import AIAnalysis from "./components/AIAnalysis";
 import Dashboard from "./components/Dashboard";
 import LandingPage from "./components/LandingPage";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const API_URL = import.meta.env.VITE_API_URL || (window.location.port === "5173" ? "http://localhost:4000" : "");
 
 function App() {
   const [user, setUser] = useState(() => {

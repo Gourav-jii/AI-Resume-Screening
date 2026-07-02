@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import "./Auth.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const API_URL = import.meta.env.VITE_API_URL || (window.location.port === "5173" ? "http://localhost:4000" : "");
 
 const FEATURES = [
   { icon: "🤖", title: "AI-Powered Screening", desc: "Instant resume analysis with GPT" },
