@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ai-resume-screening
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+        placeholder: "Your MongoDB Atlas URI (e.g. mongodb+srv://...)"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 10000
