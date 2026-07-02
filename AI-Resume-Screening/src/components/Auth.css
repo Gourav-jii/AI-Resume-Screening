@@ -596,3 +596,35 @@
   .auth-button { height: 44px; font-size: 13.5px; }
   .auth-badge { margin-bottom: 10px; }
 }
+
+/* Back button */
+.auth-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 12px;
+  margin-bottom: 20px;
+  width: fit-content;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+}
+
+.auth-back-btn:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+  transform: translateX(-4px);
+}
+
+.auth-back-btn svg.back-icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+

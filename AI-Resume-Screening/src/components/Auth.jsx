@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./Auth.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
@@ -10,8 +10,8 @@ const FEATURES = [
   { icon: "🎯", title: "Smart Shortlisting", desc: "Auto-shortlist best-fit candidates" },
 ];
 
-function Auth({ onLoginSuccess }) {
-  const [isLogin, setIsLogin] = useState(true);
+function Auth({ onLoginSuccess, initialIsLogin = true, onBackToLanding }) {
+  const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,6 +20,16 @@ function Auth({ onLoginSuccess }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setIsLogin(initialIsLogin);
+    setError("");
+    setSuccess("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setName("");
+  }, [initialIsLogin]);
 
   const handleToggleMode = () => {
     setIsLogin(!isLogin);
@@ -90,6 +100,16 @@ function Auth({ onLoginSuccess }) {
       {/* ── Left: Form ── */}
       <div className="auth-left">
         <div className="auth-card">
+          {onBackToLanding && (
+            <button type="button" className="auth-back-btn" onClick={onBackToLanding}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="back-icon">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+              <span>Back to home</span>
+            </button>
+          )}
           <div className="auth-header">
             <span className="auth-badge">Secure Access</span>
             <h1>{isLogin ? "Welcome Back" : "Create Account"}</h1>

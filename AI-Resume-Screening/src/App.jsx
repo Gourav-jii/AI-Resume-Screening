@@ -5,6 +5,7 @@ import Candidates from "./components/Candidates";
 import Shortlisted from "./components/Shortlisted";
 import AIAnalysis from "./components/AIAnalysis";
 import Dashboard from "./components/Dashboard";
+import LandingPage from "./components/LandingPage";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -13,6 +14,9 @@ function App() {
     const session = localStorage.getItem("auth_currentUser");
     return session ? JSON.parse(session) : null;
   });
+
+  const [showAuth, setShowAuth] = useState(false);
+  const [authInitialIsLogin, setAuthInitialIsLogin] = useState(true);
 
   // Dark mode — persisted in localStorage
   const [darkMode, setDarkMode] = useState(() => {
@@ -379,6 +383,8 @@ function App() {
     localStorage.removeItem("auth_currentUser");
     localStorage.removeItem("auth_token");
     setUser(null);
+    setShowAuth(false);
+    setAuthInitialIsLogin(true);
 
     setSavedJobDescriptions([]);
     setSelectedJobId("");
@@ -390,7 +396,26 @@ function App() {
   return (
     <div className="app-screen">
       {!user ? (
-        <Auth onLoginSuccess={handleLoginSuccess} />
+        showAuth ? (
+          <Auth
+            onLoginSuccess={handleLoginSuccess}
+            initialIsLogin={authInitialIsLogin}
+            onBackToLanding={() => setShowAuth(false)}
+          />
+        ) : (
+          <LandingPage
+            onLoginClick={() => {
+              setAuthInitialIsLogin(true);
+              setShowAuth(true);
+            }}
+            onSignupClick={() => {
+              setAuthInitialIsLogin(false);
+              setShowAuth(true);
+            }}
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+          />
+        )
       ) : (
         <div className="dashboard-shell">
           <header className="topbar">
